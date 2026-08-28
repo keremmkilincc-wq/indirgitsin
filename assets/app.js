@@ -60,6 +60,16 @@ function getSourceLabel(url){
   return 'YouTube';
 }
 
+// --- API base (for mobile APK: set to PC IP, e.g., http://192.168.1.15:8000) ---
+const API_BASE_KEY='indir_gitsin_api_base';
+function getApiBase(){ try{ return (localStorage.getItem(API_BASE_KEY)||'').trim().replace(/\/$/,''); }catch{ return '';} }
+function apiUrl(path){
+  const base=getApiBase();
+  if(base) return base + path;
+  return path;
+}
+function isNative(){ return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
+
 // Mock data for offline preview (when server not running)
 function mockInfo(url){
   const id = extractId(url) || 'jNQXAC9IVRw';
@@ -85,7 +95,7 @@ function mockInfo(url){
 async function fetchInfo(url){
   // Try real server first (FastAPI), fallback to mock
   try{
-    const r = await fetch(`/api/info?url=${encodeURIComponent(url)}`);
+    const r = await fetch(apiUrl(`/api/info?url=${encodeURIComponent(url)}`));
     if(r.ok){
       const j = await r.json();
       if(j.title) return j;
@@ -145,14 +155,16 @@ async function startDownload(info, format, btn){
   }, 500);
 
   try{
-    const dlUrl = `/api/download?url=${encodeURIComponent(info.url)}&format_id=${encodeURIComponent(format.id)}&ext=${format.ext}`;
+    const dlUrl = apiUrl(`/api/download?url=${encodeURIComponent(info.url)}&format_id=${encodeURIComponent(format.id)}&ext=${format.ext}`);
     let serverAvailable=false;
     let healthData=null;
-    try{ const h=await fetch(`/api/health`); serverAvailable=h.ok; if(h.ok) healthData=await h.json().catch(()=>null); }catch{ serverAvailable=false; }
+    try{ const h=await fetch(apiUrl(`/api/health`)); serverAvailable=h.ok; if(h.ok) healthData=await h.json().catch(()=>null); }catch{ serverAvailable=false; }
 
     if(serverAvailable){
       // fetch as blob to handle errors (ffmpeg/yt-dlp) properly
       progressText.textContent='Sunucuya bağlanıyor...';
+      // For native APK: use Filesystem if available, otherwise Browser
+      const native = isNative();
       const resp = await fetch(dlUrl);
       if(!resp.ok){
         let msg='';
@@ -167,12 +179,63 @@ async function startDownload(info, format, btn){
       clearInterval(iv);
       progressFill.style.width='92%'; progressText.textContent='92%';
       const blob = await resp.blob();
-      // try to get filename from header
       let filename = `${(info.title||'video').replace(/[^\w\- ]/g,'').slice(0,60)}.${format.ext}`;
       const cd = resp.headers.get('content-disposition');
       if(cd){
         const m = cd.match(/filename="?([^"]+)"?/);
-        if(m) filename = decodeURIComponent(m[1]);
+        if(m) try{ filename = decodeURIComponent(m[1]); }catch{ filename=m[1]; }
+        // handle filename*=utf-8'' part
+        const m2 = cd.match(/filename\*=utf-8''([^;]+)/i);
+        if(m2) try{ filename = decodeURIComponent(m2[1]); }catch{}
+      }
+      // Native APK: try Filesystem, fallback to Browser/open
+      if(native){
+        try{
+          const FS = window.Capacitor.Plugins.Filesystem;
+          const Browser = window.Capacitor.Plugins.Browser;
+          if(FS){
+            // blob -> base64
+            const toBase64 = (b)=> new Promise((res,rej)=>{
+              const r=new FileReader(); r.onload=()=>{ const s=r.result; const b64=s.split(',')[1]; res(b64); }; r.onerror=rej; r.readAsDataURL(b);
+            });
+            const b64 = await toBase64(blob);
+            // try Documents/Download
+            let saved=false;
+            try{
+              const Dir = FS.Directory || window.Capacitor.Plugins.Filesystem.Directory;
+              // Capacitor Filesystem Directory enum
+              const dir = Dir ? Dir.Documents : 'DOCUMENTS';
+              await FS.writeFile({ path: `Download/${filename}`, data: b64, directory: dir, recursive:true });
+              saved=true;
+            }catch(e){ console.log('FS write Documents failed', e); }
+            if(!saved){
+              try{ await FS.writeFile({ path: filename, data: b64 }); saved=true; }catch(e){ console.log('FS write cache failed', e); }
+            }
+            if(saved){
+              progressFill.style.width='100%'; progressText.textContent='100%';
+              await new Promise(r=>setTimeout(r,400));
+              progressModal.classList.add('hidden');
+              showStatus(`İndirme tamamlandı! Dosya kaydedildi: ${filename}`, 'success');
+              addToHistory(info, format);
+              return;
+            }
+          }
+          if(Browser){
+            await Browser.open({ url: dlUrl });
+            progressFill.style.width='100%'; progressText.textContent='100%';
+            progressModal.classList.add('hidden');
+            showStatus('Tarayıcıda indirme başlatıldı.', 'success');
+            addToHistory(info, format);
+            return;
+          }
+        }catch(e){ console.log('native download fallback', e); }
+        // fallback: open system browser via window.open
+        window.open(dlUrl, '_blank');
+        progressFill.style.width='100%'; progressText.textContent='100%';
+        progressModal.classList.add('hidden');
+        showStatus('İndirme bağlantısı açıldı (tarayıcı).', 'success');
+        addToHistory(info, format);
+        return;
       }
       const url = URL.createObjectURL(blob);
       const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
@@ -311,6 +374,82 @@ $('#themeToggle').addEventListener('click', ()=>{
   localStorage.setItem(THEME_KEY, next);
   applyTheme(next);
 });
+
+// Sunucu ayarı (API base) - Mobil APK için
+(function(){
+  const settingsModal=$('#settingsModal');
+  const settingsBtn=$('#settingsBtn');
+  const settingsClose=$('#settingsClose');
+  const apiInput=$('#apiBaseInput');
+  const apiTestBtn=$('#apiTestBtn');
+  const apiSaveBtn=$('#apiSaveBtn');
+  const apiTestResult=$('#apiTestResult');
+  const apiUseLocalBtn=$('#apiUseLocalBtn');
+  const apiClearBtn=$('#apiClearBtn');
+  const serverStatus=$('#serverStatus');
+  function updateServerStatus(){
+    const base=getApiBase();
+    const isN=isNative();
+    fetch(apiUrl('/api/health')).then(r=>r.ok?r.json():Promise.reject()).then(j=>{
+      const ff=j.ffmpeg ? 'ffmpeg ✓' : 'ffmpeg ✗ (sadece M4A)';
+      const baseTxt = base ? base : (isN ? 'https://localhost (APK yerel - çalışmaz!)' : 'yerel /api');
+      if(serverStatus) serverStatus.innerHTML=`Sunucu: <b style="color:#10b981">Bağlı</b> • ${ff} • <code>${baseTxt}</code>`;
+      if(apiTestResult && settingsModal && !settingsModal.classList.contains('hidden')){
+        apiTestResult.textContent=`✓ Bağlı — yt-dlp: ${j.yt_dlp ? 'var' : 'yok'}, ${ff}`; apiTestResult.style.color='#10b981';
+      }
+    }).catch(()=>{
+      const baseTxt = base ? base : (isN ? 'https://localhost (APK yerel)' : '/api');
+      if(serverStatus) serverStatus.innerHTML=`Sunucu: <b style="color:#ef4444">Bağlı değil</b> • <code>${baseTxt}</code> ${isN ? '→ ⚙️ ile PC IP gir' : ''}`;
+      if(apiTestResult && settingsModal && !settingsModal.classList.contains('hidden')){
+        apiTestResult.textContent=`✗ Bağlanamadı (${base||'/api'})`; apiTestResult.style.color='#ef4444';
+      }
+      // native'de otomatik uyarı
+      if(isN && !base && serverStatus){
+        showStatus('Mobilde indirme için ⚙️ Sunucu ayarı → PC IP girin (aynı Wi-Fi).', 'info');
+      }
+    });
+  }
+  function openSettings(){
+    if(apiInput) apiInput.value=getApiBase();
+    settingsModal?.classList.remove('hidden');
+    updateServerStatus();
+  }
+  function closeSettings(){ settingsModal?.classList.add('hidden'); }
+  settingsBtn?.addEventListener('click', openSettings);
+  settingsClose?.addEventListener('click', closeSettings);
+  settingsModal?.addEventListener('click', (e)=>{ if(e.target===settingsModal) closeSettings(); });
+  apiTestBtn?.addEventListener('click', async()=>{
+    const val=(apiInput.value||'').trim().replace(/\/$/,'');
+    const testBase = val || '';
+    const url = (testBase ? testBase : '') + '/api/health';
+    apiTestResult.textContent='Test ediliyor...'; apiTestResult.style.color='var(--muted)';
+    try{
+      const r=await fetch(url);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const j=await r.json();
+      apiTestResult.textContent=`✓ Bağlı — yt-dlp:${j.yt_dlp?'var':'yok'} ffmpeg:${j.ffmpeg?'var':'yok'}`;
+      apiTestResult.style.color='#10b981';
+    }catch(e){
+      apiTestResult.textContent='✗ Bağlanamadı: '+(e.message||e);
+      apiTestResult.style.color='#ef4444';
+    }
+  });
+  apiSaveBtn?.addEventListener('click', ()=>{
+    const v=(apiInput.value||'').trim().replace(/\/$/,'');
+    if(v && !/^https?:\/\//.test(v)){ apiTestResult.textContent='URL http:// veya https:// ile başlamalı'; apiTestResult.style.color='#ef4444'; return; }
+    if(v) localStorage.setItem(API_BASE_KEY, v); else localStorage.removeItem(API_BASE_KEY);
+    apiTestResult.textContent=v?`Kaydedildi: ${v}`:'Yerel /api kullanılacak'; apiTestResult.style.color='#10b981';
+    updateServerStatus();
+    setTimeout(closeSettings, 700);
+  });
+  apiUseLocalBtn?.addEventListener('click', ()=>{ if(apiInput) apiInput.value=''; apiTestResult.textContent='Yerel /api seçildi'; });
+  apiClearBtn?.addEventListener('click', ()=>{ localStorage.removeItem(API_BASE_KEY); if(apiInput) apiInput.value=''; apiTestResult.textContent='Sıfırlandı'; updateServerStatus(); });
+  // initial check + periodic
+  updateServerStatus();
+  setInterval(updateServerStatus, 8000);
+  // expose for debugging
+  window.updateServerStatus=updateServerStatus;
+})();
 
 // Share Target handling (PWA + Native Android SEND)
 function handleSharedText(text){

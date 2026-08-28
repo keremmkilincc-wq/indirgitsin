@@ -31,6 +31,7 @@
     </div>
   </div>
   <div class="header-actions">
+    <button class="icon-btn" id="settingsBtn" title="Sunucu ayarı">⚙️</button>
     <button class="icon-btn" id="themeToggle" title="Tema değiştir">🌙</button>
     <a href="https://github.com/keremmkilincc-wq/indirgitsin" target="_blank" class="icon-btn" title="GitHub Repo">⬢</a>
     <a href="https://github.com/keremmkilincc-wq" target="_blank" class="icon-btn" title="Geliştirici Profili" style="font-size:10px;font-weight:800">KER</a>
@@ -106,7 +107,8 @@
       </div>
     </div>
     <div id="optionsList" class="options-list"></div>
-    <p class="hint">💡 İpucu: Android'de indirilenler <code>İndirilenler/İndirGitsin</code> klasörüne kaydedilir.</p>
+    <p class="hint">💡 İpucu: Mobilde indirme için <b>⚙️ Sunucu ayarı</b> → PC IP'sini gir (aynı Wi-Fi). Örn: <code>http://192.168.1.100:8000</code> • Dosyalar <code>İndirilenler/İndirGitsin</code> klasörüne kaydedilir.</p>
+    <p id="serverStatus" class="hint" style="margin-top:6px"></p>
   </section>
 
   <!-- History -->
@@ -135,6 +137,31 @@
     <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
     <p id="progressText">0%</p>
     <button id="cancelDl" class="ghost-btn">İptal</button>
+  </div>
+</div>
+
+<!-- Sunucu Ayarı modal -->
+<div id="settingsModal" class="modal hidden">
+  <div class="modal-content glass" style="max-width:480px;text-align:left">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <h3 style="font-family:'Outfit',sans-serif">⚙️ Sunucu Ayarı</h3>
+      <button id="settingsClose" class="icon-btn" style="margin-left:auto">✕</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);line-height:1.5">Mobilde indirme için Python sunucusu gerekiyor. PC'de <code>python server/app.py</code> çalıştır, aynı Wi-Fi'da PC'nin IP'sini buraya gir.</p>
+    <div style="margin:12px 0;display:flex;gap:8px;align-items:center">
+      <span style="font-size:12px;opacity:0.7">API URL</span>
+      <input id="apiBaseInput" type="url" placeholder="http://192.168.1.100:8000" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(128,128,128,0.2);background:var(--glass);color:var(--text);font-size:13px">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="apiTestBtn" class="ghost-btn" style="flex:1;justify-content:center">Test Et</button>
+      <button id="apiSaveBtn" class="download-btn" style="flex:1;justify-content:center">Kaydet</button>
+    </div>
+    <p id="apiTestResult" style="font-size:12px;margin-top:10px;min-height:16px;color:var(--muted)"></p>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button id="apiUseLocalBtn" class="ghost-btn small" style="flex:1">Yerel (PC) → /api</button>
+      <button id="apiClearBtn" class="ghost-btn small" style="flex:1">Sıfırla</button>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:10px">İpucu: PC'de <code>ipconfig</code> (Windows) ile IPv4 adresini bul. Örn: <code>http://192.168.1.15:8000</code>. Emülatör için <code>http://10.0.2.2:8000</code></p>
   </div>
 </div>
 

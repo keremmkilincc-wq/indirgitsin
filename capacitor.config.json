@@ -3,7 +3,9 @@
   "appName": "İndir Gitsin",
   "webDir": "www",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": ["*"]
   },
   "plugins": {
     "StatusBar": {
