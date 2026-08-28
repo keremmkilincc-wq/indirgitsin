@@ -51,7 +51,8 @@ def extract_id(url: str):
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "yt_dlp": HAS_YTDLP, "app": "İndir Gitsin"}
+    import shutil
+    return {"ok": True, "yt_dlp": HAS_YTDLP, "ffmpeg": bool(shutil.which("ffmpeg")), "app": "İndir Gitsin"}
 
 @app.get("/api/info")
 def info(url: str = Query(..., description="YouTube URL")):
@@ -184,10 +185,13 @@ def download(url: str = Query(...), format_id: str = Query("18"), ext: str = Que
     if not HAS_YTDLP:
         raise HTTPException(503, "Sunucuda yt-dlp kurulu değil. pip install yt-dlp")
     tmpdir = tempfile.mkdtemp()
+    import shutil
+    has_ffmpeg = bool(shutil.which("ffmpeg"))
     # map preset id -> yt-dlp selector
     if format_id in PRESET_MAP:
+        if not has_ffmpeg and format_id == "mp3":
+            raise HTTPException(500, "MP3 için ffmpeg gerekli. Lütfen ffmpeg kurun veya M4A seçin.")
         selector = PRESET_MAP[format_id]
-        # ext override for preset
         if format_id.startswith("mp4_"):
             ext = "mp4"
         elif format_id == "m4a":
@@ -206,7 +210,7 @@ def download(url: str = Query(...), format_id: str = Query("18"), ext: str = Que
             "quiet": True,
         }
     else:
-        # for mp4 presets ensure merging
+        # for mp4 presets ensure merging only if ffmpeg available
         ydl_opts = {
             "format": selector if selector else "best",
             "outtmpl": os.path.join(tmpdir, "%(title).80s.%(ext)s"),

@@ -135,51 +135,76 @@ async function startDownload(info, format, btn){
   btn.disabled=true; btn.textContent='Hazırlanıyor...';
   progressModal.classList.remove('hidden');
   progressTitle.textContent = `${info.title.slice(0,40)} - ${format.label}`;
-  let p=0;
+  progressFill.style.width='8%'; progressText.textContent='8%';
+  let p=8;
   const iv = setInterval(()=>{
-    p+= Math.random()*18;
-    if(p>=92) p=92;
+    p+= Math.random()*12;
+    if(p>=88) p=88;
     progressFill.style.width=p+'%';
     progressText.textContent=Math.round(p)+'%';
-  }, 300);
+  }, 500);
 
   try{
-    // try real server download
     const dlUrl = `/api/download?url=${encodeURIComponent(info.url)}&format_id=${encodeURIComponent(format.id)}&ext=${format.ext}`;
-    // check if server available: HEAD
     let serverAvailable=false;
-    try{ const h=await fetch(`/api/health`); serverAvailable=h.ok; }catch{ serverAvailable=false; }
+    let healthData=null;
+    try{ const h=await fetch(`/api/health`); serverAvailable=h.ok; if(h.ok) healthData=await h.json().catch(()=>null); }catch{ serverAvailable=false; }
 
     if(serverAvailable){
-      // trigger download via hidden link
+      // fetch as blob to handle errors (ffmpeg/yt-dlp) properly
+      progressText.textContent='Sunucuya bağlanıyor...';
+      const resp = await fetch(dlUrl);
+      if(!resp.ok){
+        let msg='';
+        try{ const j=await resp.json(); msg=j.detail||j.message||JSON.stringify(j); }catch{ try{ msg=await resp.text(); }catch{} }
+        if(!msg) msg=`HTTP ${resp.status}`;
+        // ffmpeg missing => friendly message
+        if(msg.toLowerCase().includes('ffmpeg')){
+          throw new Error('Bu format için ffmpeg gerekli. M4A deneyin veya ffmpeg kurun.');
+        }
+        throw new Error(msg);
+      }
       clearInterval(iv);
+      progressFill.style.width='92%'; progressText.textContent='92%';
+      const blob = await resp.blob();
+      // try to get filename from header
+      let filename = `${(info.title||'video').replace(/[^\w\- ]/g,'').slice(0,60)}.${format.ext}`;
+      const cd = resp.headers.get('content-disposition');
+      if(cd){
+        const m = cd.match(/filename="?([^"]+)"?/);
+        if(m) filename = decodeURIComponent(m[1]);
+      }
+      const url = URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),4000);
       progressFill.style.width='100%'; progressText.textContent='100%';
-      await new Promise(r=>setTimeout(r,600));
+      await new Promise(r=>setTimeout(r,400));
       progressModal.classList.add('hidden');
-      showStatus('İndirme başlatıldı! Dosya İndirilenler klasörüne kaydedilecek.', 'success');
-      const a=document.createElement('a'); a.href=dlUrl; a.download=''; document.body.appendChild(a); a.click(); a.remove();
+      showStatus('İndirme tamamlandı! İndirilenler klasörüne kaydedildi.', 'success');
       addToHistory(info, format);
       return;
     }
 
-    // Mock download (demo)
-    await new Promise(r=>setTimeout(r, 2100));
+    // Mock download (demo - server yokken)
+    await new Promise(r=>setTimeout(r, 1200));
     clearInterval(iv);
     progressFill.style.width='100%'; progressText.textContent='100%';
-    await new Promise(r=>setTimeout(r,400));
+    await new Promise(r=>setTimeout(r,300));
     progressModal.classList.add('hidden');
-    // create dummy blob for demo
     const blob = new Blob([`Demo dosya: ${info.title}\nFormat: ${format.label}\nURL: ${info.url}\n\nGerçek indirme için Python sunucusunu başlatın: python server/app.py`], {type:'text/plain'});
     const url = URL.createObjectURL(blob);
     const a=document.createElement('a'); a.href=url; a.download=`${info.id}_${format.ext}.txt`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000);
-    showStatus('Demo indirildi (gerçek video için sunucuyu başlatın).', 'success');
+    showStatus('Demo indirildi (gerçek video için sunucuyu başlatın).', 'info');
     addToHistory(info, format);
   }catch(e){
-    showStatus('İndirme hatası: '+e.message,'error');
+    clearInterval(iv);
+    progressModal.classList.add('hidden');
+    progressFill.style.width='0%';
+    showStatus('İndirme hatası: '+(e.message||e), 'error');
   }finally{
     btn.disabled=false; btn.textContent='İndir';
     clearInterval(iv);
-    setTimeout(()=>{progressModal.classList.add('hidden'); progressFill.style.width='0%';}, 1200);
+    setTimeout(()=>{progressModal.classList.add('hidden'); progressFill.style.width='0%';}, 1500);
   }
 }
 
@@ -256,10 +281,23 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>{
 }));
 $('#clearHistory').addEventListener('click', ()=>{ localStorage.removeItem('indir_gitsin_history'); renderHistory(); });
 $('#cancelDl').addEventListener('click', ()=> progressModal.classList.add('hidden'));
+// Theme toggle - persisted + CSS variables
+const THEME_KEY='indir_gitsin_theme';
+function applyTheme(t){
+  const isLight = t==='light';
+  document.body.classList.toggle('light', isLight);
+  const btn=$('#themeToggle');
+  if(btn) btn.textContent = isLight ? '☀️' : '🌙';
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isLight ? '#ffffff' : '#0a0a0f');
+  // update bg blobs visibility via CSS, keep bg variable
+}
+const savedTheme = localStorage.getItem(THEME_KEY) || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+applyTheme(savedTheme);
 $('#themeToggle').addEventListener('click', ()=>{
-  document.body.classList.toggle('light');
-  const isLight=document.body.classList.contains('light');
-  document.body.style.background=isLight?'#f5f5f7':'#0a0a0f';
+  const isLight = document.body.classList.contains('light');
+  const next = isLight ? 'dark' : 'light';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
 });
 
 // Share Target handling (PWA + Native Android SEND)

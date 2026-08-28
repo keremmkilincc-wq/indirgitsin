@@ -16,7 +16,28 @@ body{
   min-height:100vh;
   padding-bottom:90px;
   overflow-x:hidden;
+  transition:background 0.3s,color 0.3s;
 }
+body.light{
+  --bg:#f5f6fb;
+  --glass:rgba(255,255,255,0.78);
+  --glass-border:rgba(15,23,42,0.08);
+  --text:#0f172a;
+  --muted:#64748b;
+}
+body.light .bg{background:radial-gradient(1200px 600px at 20% -10%, #ff003312, transparent 60%), radial-gradient(900px 600px at 90% 0%, #7c3aed12, transparent 60%), radial-gradient(1000px 600px at 50% 100%, #06b6d412, transparent 60%), #f5f6fb;}
+body.light .glass{background:rgba(255,255,255,0.78);border-color:rgba(15,23,42,0.08);box-shadow:0 8px 32px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.7);backdrop-filter:blur(16px) saturate(1.2)}
+body.light .input-wrapper{background:rgba(255,255,255,0.9);border-color:rgba(15,23,42,0.12)}
+body.light .input-wrapper:focus-within{border-color:rgba(255,0,51,0.35);box-shadow:0 0 0 4px rgba(255,0,51,0.08);background:white}
+body.light .input-wrapper input{color:#0f172a}
+body.light .chip{background:rgba(15,23,42,0.06);border-color:rgba(15,23,42,0.08);color:#475569}
+body.light .chip:hover{background:rgba(15,23,42,0.1);color:#0f172a}
+body.light .status.info{background:rgba(59,130,246,0.08);border-color:rgba(59,130,246,0.18);color:#1d4ed8}
+body.light .option{background:rgba(15,23,42,0.03);border-color:rgba(15,23,42,0.06)}
+body.light .option:hover{background:rgba(15,23,42,0.06);border-color:rgba(15,23,42,0.1)}
+body.light .ghost-btn{background:rgba(15,23,42,0.04);border-color:rgba(15,23,42,0.08);color:#0f172a}
+body.light .icon-btn{background:rgba(15,23,42,0.05);border-color:rgba(15,23,42,0.08);color:#0f172a}
+body.light .bottom-nav{background:rgba(255,255,255,0.85);border-color:rgba(15,23,42,0.08)}
 .bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:radial-gradient(1200px 600px at 20% -10%, #ff003322, transparent 60%), radial-gradient(900px 600px at 90% 0%, #7c3aed22, transparent 60%), radial-gradient(1000px 600px at 50% 100%, #06b6d422, transparent 60%), #0a0a0f;}
 .blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:0.5}
 .blob1{width:600px;height:600px;background:linear-gradient(135deg,#ff0033,#ff7a00);top:-180px;left:-120px;animation:float 12s ease-in-out infinite}
