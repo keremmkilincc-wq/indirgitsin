@@ -1,8 +1,13 @@
 package com.indirgitsin.app;
 
+import android.app.DownloadManager;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.webkit.URLUtil;
+import android.webkit.WebView;
+import android.widget.Toast;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -10,7 +15,44 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // handle intent after bridge is ready (post delay)
-        getBridge().getWebView().postDelayed(() -> handleIntent(getIntent()), 500);
+        getBridge().getWebView().postDelayed(() -> {
+            handleIntent(getIntent());
+            setupDownloadListener();
+        }, 500);
+    }
+
+    private void setupDownloadListener() {
+        try {
+            WebView webView = getBridge().getWebView();
+            webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
+                try {
+                    String fileName = URLUtil.guessFileName(url, contentDisposition, mimetype);
+                    if (fileName == null || fileName.isEmpty()) fileName = "indir-gitsin-" + System.currentTimeMillis() + ".mp4";
+                    // sanitize
+                    fileName = fileName.replaceAll("[\\\\/:*?\"<>|]", "_");
+                    DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                    DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
+                    req.setMimeType(mimetype);
+                    req.addRequestHeader("User-Agent", userAgent);
+                    req.setDescription("İndir Gitsin ile indiriliyor...");
+                    req.setTitle(fileName);
+                    req.allowScanningByMediaScanner();
+                    req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                    req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "IndirGitsin/" + fileName);
+                    dm.enqueue(req);
+                    Toast.makeText(this, "İndirme başlatıldı: " + fileName, Toast.LENGTH_LONG).show();
+                    // Also open in browser as fallback for direct CDN
+                } catch (Exception e) {
+                    // fallback: open in external browser
+                    try {
+                        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                        startActivity(i);
+                    } catch (Exception ex) {
+                        Toast.makeText(this, "İndirme hatası: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    }
+                }
+            });
+        } catch (Exception ignored) {}
     }
 
     @Override

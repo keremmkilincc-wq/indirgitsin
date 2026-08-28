@@ -88,17 +88,46 @@ function mockInfo(url){
   };
 }
 
-// --- Client-side direct extractor (Piped + Innertube) - sunucusuz çalışır ---
-const PIPED_HOSTS = [
-  'https://pipedapi.kavin.rocks',
-  'https://pipedapi.adminforge.de',
-  'https://api.piped.projectsegfau.lt'
-];
+// --- Client-side direct extractor (Innertube primary + Piped fallback) - sunucusuz çalışır ---
+// CapacitorHttp varsa CORS bypass için onu kullan
+async function nativeFetch(url, opts={}){
+  // 1) CapacitorHttp (CORS bypass)
+  try{
+    const cap = window.Capacitor && window.Capacitor.Plugins && (window.Capacitor.Plugins.CapacitorHttp || window.Capacitor.Plugins.Http);
+    if(cap && cap.request){
+      const method = (opts.method||'GET').toUpperCase();
+      const headers = opts.headers||{};
+      const data = opts.body;
+      const res = await cap.request({url, method, headers, data, connectTimeout: 8000, readTimeout: 12000});
+      // normalize to fetch-like
+      return {
+        ok: res.status >=200 && res.status<300,
+        status: res.status,
+        headers: { get:(k)=> (res.headers && (res.headers[k]||res.headers[k.toLowerCase()])) || null },
+        json: async()=> typeof res.data==='string' ? JSON.parse(res.data) : res.data,
+        text: async()=> typeof res.data==='string' ? res.data : JSON.stringify(res.data),
+        blob: async()=> { // for binary, data is base64? fallback
+          if(res.data instanceof Blob) return res.data;
+          // if base64 string, convert
+          return new Blob([res.data]);
+        },
+        arrayBuffer: async()=> res.data
+      };
+    }
+  }catch(e){ console.log('CapacitorHttp failed', e); }
+  return fetch(url, opts);
+}
 
 async function fetchWithTimeout(url, opts={}, ms=8000){
   const c = new AbortController();
   const t = setTimeout(()=>c.abort(), ms);
   try{
+    // CapacitorHttp doesn't support signal, fallback to fetch
+    const hasCap = !!(window.Capacitor && window.Capacitor.Plugins && (window.Capacitor.Plugins.CapacitorHttp || window.Capacitor.Plugins.Http));
+    if(hasCap && opts.method==='POST'){
+      clearTimeout(t);
+      return await nativeFetch(url, opts);
+    }
     const r = await fetch(url, {...opts, signal:c.signal});
     clearTimeout(t);
     return r;
@@ -106,13 +135,21 @@ async function fetchWithTimeout(url, opts={}, ms=8000){
 }
 
 async function fetchViaPiped(videoId){
+  // Piped çoğu instance kapandı, dene ama hızlı fail
+  const PIPED_HOSTS = [
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi.adminforge.de',
+    'https://api.piped.projectsegfau.lt',
+    'https://pipedapi.mha.fi',
+    'https://pipedapi.r4fo.com'
+  ];
   let lastErr=null;
   for(const host of PIPED_HOSTS){
     try{
-      const r = await fetchWithTimeout(`${host}/streams/${videoId}`, {}, 7000);
-      if(!r.ok) throw new Error('HTTP '+r.status);
+      const r = await fetchWithTimeout(`${host}/streams/${videoId}`, {}, 5000);
+      if(!r.ok) continue;
       const j = await r.json();
-      if(!j.title) throw new Error('No title');
+      if(!j.title) continue;
       return j;
     }catch(e){ lastErr=e; continue; }
   }
@@ -172,16 +209,44 @@ function mapPipedToInfo(piped, originalUrl, videoId){
 }
 
 async function fetchViaInnertube(videoId){
-  // Direct YouTube Innertube player API - CORS may fail on web, native WebView usually ok
   const key='AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
-  const body={context:{client:{clientName:'ANDROID', clientVersion:'20.10.38', androidSdkVersion:30, hl:'tr', gl:'TR'}}, videoId, playbackContext:{contentPlaybackContext:{html5Preference:'HTML5_PREF_WANTS'}}, racyCheckOk:true, contentCheckOk:true};
-  const r = await fetchWithTimeout(`https://www.youtube.com/youtubei/v1/player?key=${key}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}, 8000);
-  if(!r.ok) throw new Error('Innertube HTTP '+r.status);
-  const j = await r.json();
-  const details=j.videoDetails||{};
-  const sd=j.streamingData||{};
-  if(!sd.formats && !sd.adaptiveFormats) throw new Error('No streamingData');
-  return {details, streamingData:sd};
+  const clients = [
+    {clientName:'ANDROID', clientVersion:'20.10.38', androidSdkVersion:30},
+    {clientName:'IOS', clientVersion:'19.29.1', deviceModel:'iPhone16,2', osVersion:'17.5.1.21F90'},
+    {clientName:'WEB', clientVersion:'2.20250101.00.00'},
+  ];
+  const doFetch = async (url, body)=>{
+    // dene: nativeFetch -> fetch -> corsproxy
+    try{
+      let r = await nativeFetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+      if(r.ok) return r;
+      throw new Error('HTTP '+r.status);
+    }catch(e){
+      // CORS/proxy fallback
+      try{
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+        let r2 = await fetch(proxyUrl, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+        if(r2.ok) return r2;
+      }catch{}
+      throw e;
+    }
+  };
+  let lastErr=null;
+  for(const client of clients){
+    try{
+      const body={context:{client:{...client, hl:'tr', gl:'TR'}}, videoId, playbackContext:{contentPlaybackContext:{html5Preference:'HTML5_PREF_WANTS'}}, racyCheckOk:true, contentCheckOk:true};
+      const r = await doFetch(`https://www.youtube.com/youtubei/v1/player?key=${key}`, body);
+      const j = await r.json();
+      if(j.playabilityStatus && j.playabilityStatus.status==='ERROR' && j.playabilityStatus.reason){
+        if(String(j.playabilityStatus.reason).toLowerCase().includes('sign in')) { lastErr=new Error(j.playabilityStatus.reason); continue; }
+      }
+      const details=j.videoDetails||{};
+      const sd=j.streamingData||{};
+      if(!sd.formats && !sd.adaptiveFormats) throw new Error('No streamingData');
+      return {details, streamingData:sd};
+    }catch(e){ lastErr=e; continue; }
+  }
+  throw lastErr || new Error('Innertube failed');
 }
 
 function mapInnertubeToInfo(data, originalUrl, videoId){
@@ -306,25 +371,94 @@ async function startDownload(info, format, btn){
     const native = isNative();
     // 1) Doğrudan CDN - sunucusuz, cihaz doğrudan indirir (öncelikli)
     if(format.url && format.url.startsWith('http')){
-      clearInterval(iv);
-      progressFill.style.width='100%'; progressText.textContent='100%';
-      await new Promise(r=>setTimeout(r,300));
-      progressModal.classList.add('hidden');
       let filename = `${(info.title||'video').replace(/[^\w\- ]/g,'').slice(0,60)}.${format.ext}`;
-      // native APK: önce sistem tarayıcısı / Download manager, web: <a download>
-      try{
-        if(native && window.Capacitor.Plugins.Browser){
-          await window.Capacitor.Plugins.Browser.open({ url: format.url });
-          showStatus('Doğrudan indirme başlatıldı (cihaza kaydediliyor)...', 'success');
-        } else {
-          // CORS nedeniyle direkt <a> bazen çalışmaz, yine de dene
+      // Native: önce Filesystem ile gerçek indirme dene (DownloadManager + Filesystem), fallback Browser
+      if(native){
+        try{
+          progressText.textContent='İndiriliyor (doğrudan)...';
+          // Yöntem A: Fetch blob -> Filesystem (en güvenilir, Downloads'a yazar)
+          try{
+            const resp = await fetch(format.url);
+            if(resp.ok){
+              const blob = await resp.blob();
+              const toBase64 = (b)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=> res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(b); });
+              const b64 = await toBase64(blob);
+              const FS = window.Capacitor.Plugins.Filesystem;
+              if(FS){
+                let saved=false;
+                try{
+                  const Dir = FS.Directory || window.Capacitor.Plugins.Filesystem.Directory;
+                  const dir = Dir ? Dir.Documents : 'DOCUMENTS';
+                  await FS.writeFile({ path: `Download/IndirGitsin/${filename}`, data: b64, directory: dir, recursive:true });
+                  saved=true;
+                }catch(e){ console.log('FS Documents fail', e); }
+                if(!saved){
+                  try{ await FS.writeFile({ path: filename, data: b64 }); saved=true; }catch(e){ console.log('FS cache fail', e); }
+                }
+                if(saved){
+                  clearInterval(iv);
+                  progressFill.style.width='100%'; progressText.textContent='100%';
+                  await new Promise(r=>setTimeout(r,300));
+                  progressModal.classList.add('hidden');
+                  showStatus(`İndirildi ✓ Kaydedildi: IndirGitsin/${filename}`, 'success');
+                  addToHistory(info, format);
+                  return;
+                }
+              }
+            }
+          }catch(e){ console.log('direct fetch->FS failed', e); }
+          // Yöntem B: DownloadManager via hidden anchor (MainActivity setDownloadListener yakalar)
+          try{
+            const a=document.createElement('a'); a.href=format.url; a.download=filename; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove();
+            clearInterval(iv);
+            progressFill.style.width='100%'; progressText.textContent='100%';
+            await new Promise(r=>setTimeout(r,300));
+            progressModal.classList.add('hidden');
+            showStatus('İndirme başlatıldı (İndirilenler/IndirGitsin klasörünü kontrol et)...', 'success');
+            addToHistory(info, format);
+            return;
+          }catch(e2){ console.log('anchor trigger failed', e2); }
+          // Yöntem C: External browser
+          try{
+            if(window.Capacitor.Plugins.Browser) await window.Capacitor.Plugins.Browser.open({ url: format.url });
+            else window.open(format.url, '_blank');
+            clearInterval(iv);
+            progressFill.style.width='100%'; progressText.textContent='100%';
+            progressModal.classList.add('hidden');
+            showStatus('Tarayıcıda açıldı - indirme için ... menüden Kaydet deyin.', 'info');
+            addToHistory(info, format);
+            return;
+          }catch{}
+        }catch(e){
+          console.log('native direct failed', e);
+        }
+      } else {
+        // Web: direkt anchor
+        try{
+          clearInterval(iv);
+          progressFill.style.width='100%'; progressText.textContent='100%';
+          await new Promise(r=>setTimeout(r,200));
+          progressModal.classList.add('hidden');
           const a=document.createElement('a'); a.href=format.url; a.download=filename; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove();
           showStatus('Doğrudan indirme başlatıldı.', 'success');
+          addToHistory(info, format);
+          return;
+        }catch{
+          window.open(format.url, '_blank');
+          clearInterval(iv);
+          progressFill.style.width='100%'; progressText.textContent='100%';
+          progressModal.classList.add('hidden');
+          showStatus('Doğrudan indirme başlatıldı.', 'success');
+          addToHistory(info, format);
+          return;
         }
-      }catch{
-        window.open(format.url, '_blank');
-        showStatus('Doğrudan indirme başlatıldı.', 'success');
       }
+      // fallback still
+      clearInterval(iv);
+      progressFill.style.width='100%'; progressText.textContent='100%';
+      progressModal.classList.add('hidden');
+      window.open(format.url, '_blank');
+      showStatus('Doğrudan link açıldı.', 'info');
       addToHistory(info, format);
       return;
     }
