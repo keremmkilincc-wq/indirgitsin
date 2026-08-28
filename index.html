@@ -32,7 +32,8 @@
   </div>
   <div class="header-actions">
     <button class="icon-btn" id="themeToggle" title="Tema değiştir">🌙</button>
-    <a href="https://github.com" target="_blank" class="icon-btn" title="GitHub">⬢</a>
+    <a href="https://github.com/keremmkilincc-wq/indirgitsin" target="_blank" class="icon-btn" title="GitHub Repo">⬢</a>
+    <a href="https://github.com/keremmkilincc-wq" target="_blank" class="icon-btn" title="Geliştirici Profili" style="font-size:10px;font-weight:800">KER</a>
   </div>
 </header>
 
@@ -121,9 +122,9 @@
 </main>
 
 <nav class="bottom-nav glass">
-  <button class="nav-item active"><span>⬇</span> İndir</button>
+  <button class="nav-item active" onclick="window.scrollTo({top:0,behavior:'smooth'})"><span>⬇</span> İndir</button>
   <button class="nav-item" onclick="document.getElementById('historyCard').scrollIntoView({behavior:'smooth'})"><span>🕘</span> Geçmiş</button>
-  <button class="nav-item" onclick="alert('İndir Gitsin v1.0\nYouTube & Music destekli\n\nShare Intent: YouTube → Paylaş → İndir Gitsin\nGitHub push → otomatik Release & APK')"><span>ℹ</span> Hakkında</button>
+  <button class="nav-item" id="aboutBtn"><span>ℹ</span> Hakkında</button>
 </nav>
 
 <!-- Download progress modal -->
@@ -134,6 +135,32 @@
     <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
     <p id="progressText">0%</p>
     <button id="cancelDl" class="ghost-btn">İptal</button>
+  </div>
+</div>
+
+<!-- Hakkında modal -->
+<div id="aboutModal" class="modal hidden">
+  <div class="modal-content glass" style="max-width:480px;text-align:left">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+      <div class="logo-icon" style="width:48px;height:48px;border-radius:14px"><svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" fill="white" opacity="0.95"/><path d="M2 17l10 5 10-5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/><path d="M2 12l10 5 10-5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><circle cx="12" cy="12" r="3" fill="#FF0033" stroke="white" stroke-width="1"/></svg></div>
+      <div>
+        <h3 style="font-family:'Outfit',sans-serif;font-size:18px">İndir Gitsin</h3>
+        <p style="font-size:12px;color:var(--muted)">v1.0 • YouTube & YouTube Music İndirici</p>
+      </div>
+      <button id="aboutClose" class="icon-btn" style="margin-left:auto">✕</button>
+    </div>
+    <p style="font-size:13px;line-height:1.6;color:var(--muted)">Link yapıştır veya YouTube / YouTube Music uygulamasından <b style="color:var(--text)">Paylaş → İndir Gitsin</b> ile tek tıkla indir. Modern glassmorphism arayüz, MP4 (1080p/720p/480p/360p) ve M4A/MP3 desteği.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin:14px 0">
+      <span style="font-size:11px;padding:6px 10px;border-radius:999px;background:rgba(255,0,51,0.12);border:1px solid rgba(255,0,51,0.2);color:#ff6b8a">YouTube</span>
+      <span style="font-size:11px;padding:6px 10px;border-radius:999px;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.2);color:#a78bfa">Music</span>
+      <span style="font-size:11px;padding:6px 10px;border-radius:999px;background:rgba(6,182,214,0.12);border:1px solid rgba(6,182,214,0.2);color:#22d3ee">Shorts</span>
+      <span style="font-size:11px;padding:6px 10px;border-radius:999px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.2);color:#34d399">MP4 • MP3</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+      <a href="https://github.com/keremmkilincc-wq/indirgitsin" target="_blank" class="ghost-btn" style="justify-content:center">⬢ GitHub Repo — keremmkilincc-wq/indirgitsin</a>
+      <a href="https://github.com/keremmkilincc-wq" target="_blank" class="ghost-btn" style="justify-content:center">👤 Geliştirici — @keremmkilincc-wq</a>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:12px;text-align:center">Yasal uyarı: Yalnızca haklarına sahip olduğunuz içerikleri indirin.<br>© 2026 İndir Gitsin • MIT</p>
   </div>
 </div>
 

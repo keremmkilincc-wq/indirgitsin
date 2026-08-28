@@ -281,6 +281,18 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>{
 }));
 $('#clearHistory').addEventListener('click', ()=>{ localStorage.removeItem('indir_gitsin_history'); renderHistory(); });
 $('#cancelDl').addEventListener('click', ()=> progressModal.classList.add('hidden'));
+// About modal
+(function(){
+  const aboutModal=$('#aboutModal');
+  const aboutBtn=$('#aboutBtn');
+  const aboutClose=$('#aboutClose');
+  function openAbout(){ aboutModal?.classList.remove('hidden'); }
+  function closeAbout(){ aboutModal?.classList.add('hidden'); }
+  aboutBtn?.addEventListener('click', openAbout);
+  aboutClose?.addEventListener('click', closeAbout);
+  aboutModal?.addEventListener('click', (e)=>{ if(e.target===aboutModal) closeAbout(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeAbout(); });
+})();
 // Theme toggle - persisted + CSS variables
 const THEME_KEY='indir_gitsin_theme';
 function applyTheme(t){
