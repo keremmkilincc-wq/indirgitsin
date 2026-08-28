@@ -35,6 +35,16 @@ if (ROOT / "assets").exists():
 
 YOUTUBE_RE = re.compile(r"(https?://)?(www\.|music\.|m\.)?(youtube\.com|youtu\.be)/\S+")
 
+# Preset selector mapping for MP4 + audio (guaranteed video via merging)
+PRESET_MAP = {
+    "mp4_1080": "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]",
+    "mp4_720": "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]",
+    "mp4_480": "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480]",
+    "mp4_360": "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=360]+bestaudio/best[height<=360]",
+    "m4a": "bestaudio[ext=m4a]/bestaudio/best",
+    "mp3": "bestaudio/best",
+}
+
 def extract_id(url: str):
     m = re.search(r"(?:v=|\.be/|shorts/)([A-Za-z0-9_-]{6,11})", url)
     return m.group(1) if m else "unknown"
@@ -85,11 +95,11 @@ def info(url: str = Query(..., description="YouTube URL")):
             views = data.get("view_count")
             views_str = f"{views:,}".replace(",",".") if views else ""
             thumb = data.get("thumbnail") or f"https://img.youtube.com/vi/{vid}/hqdefault.jpg"
-            # Build format list: pick best per height + audio only
+            # Build format list: pick best per height + audio only + presets (MP4 merging)
             formats = []
             seen = set()
             fmts = data.get("formats") or []
-            # Video with audio
+            # Video with audio (direct combined)
             for f in fmts:
                 ext = f.get("ext")
                 h = f.get("height")
@@ -104,7 +114,24 @@ def info(url: str = Query(..., description="YouTube URL")):
                     size_str = f"~{round(size/1024/1024)} MB" if size else ""
                     formats.append({"id":str(fid),"label":f"MP4 {h}p" if ext=="mp4" else f"{ext.upper()} {h}p","ext":ext,"quality":f"{h}p","type":"video","size":size_str,"hasAudio":True,"fps":f.get("fps")})
             # sort video descending
-            formats.sort(key=lambda x: int(x["quality"].replace("p","")), reverse=True)
+            formats.sort(key=lambda x: int(x["quality"].replace("p","").replace("kbps","")) if "p" in x["quality"] else 0, reverse=True)
+
+            # Determine max height for preset filtering
+            heights = [f.get("height") for f in fmts if f.get("height")]
+            max_h = max(heights) if heights else 720
+
+            # Add MP4 merge presets (guaranteed video via ffmpeg merge) if not already covered
+            preset_defs = [
+                ("mp4_1080", "MP4 1080p", "1080p", 1080),
+                ("mp4_720", "MP4 720p", "720p", 720),
+                ("mp4_480", "MP4 480p", "480p", 480),
+                ("mp4_360", "MP4 360p", "360p", 360),
+            ]
+            existing_qualities = {x["quality"] for x in formats}
+            for pid, label, qual, h in preset_defs:
+                if h <= max_h + 180 and qual not in existing_qualities:  # allow one above max for fallback
+                    formats.append({"id": pid, "label": f"{label} (MP4)", "ext": "mp4", "quality": qual, "type": "video", "size": "", "hasAudio": True})
+
             # Audio only
             audio_added=False
             for f in reversed(fmts):
@@ -112,15 +139,30 @@ def info(url: str = Query(..., description="YouTube URL")):
                     ext=f.get("ext"); fid=f.get("format_id"); abr=f.get("abr")
                     label = f"{ext.upper()} {int(abr)}kbps" if abr else ext.upper()
                     if not audio_added:
-                        formats.append({"id":str(fid),"label":label,"ext":ext,"quality":f"{int(abr)}kbps" if abr else ext,"type":"audio","size":""})
+                        formats.append({"id":"m4a","label":"M4A (Ses)","ext":"m4a","quality":f"{int(abr)}kbps" if abr else "128kbps","type":"audio","size":""})
                         audio_added=True
                         break
+            if not audio_added:
+                formats.append({"id":"m4a","label":"M4A (Ses)","ext":"m4a","quality":"128kbps","type":"audio","size":""})
             # Always add mp3 convert option
-            formats.append({"id":"mp3","label":"MP3 320kbps (dönüştür)","ext":"mp3","quality":"320kbps","type":"audio","size":""})
+            formats.append({"id":"mp3","label":"MP3 320kbps","ext":"mp3","quality":"320kbps","type":"audio","size":""})
+            # Deduplicate by id and keep order video first
+            uniq = {}
+            for f in formats:
+                if f["id"] not in uniq:
+                    uniq[f["id"]] = f
+            # Re-sort: video by height desc, then audio
+            videos = [v for v in uniq.values() if v["type"]=="video"]
+            audios = [v for v in uniq.values() if v["type"]=="audio"]
+            def hval(x):
+                try: return int(x["quality"].replace("p",""))
+                except: return 0
+            videos.sort(key=hval, reverse=True)
+            formats = videos + audios
             if not formats:
                 formats = [
-                    {"id":"18","label":"MP4 360p","ext":"mp4","quality":"360p","type":"video","size":""},
-                    {"id":"140","label":"M4A 128kbps","ext":"m4a","quality":"128kbps","type":"audio","size":""},
+                    {"id":"mp4_360","label":"MP4 360p (MP4)","ext":"mp4","quality":"360p","type":"video","size":""},
+                    {"id":"m4a","label":"M4A (Ses)","ext":"m4a","quality":"128kbps","type":"audio","size":""},
                 ]
             return {
                 "id": vid,
@@ -142,18 +184,31 @@ def download(url: str = Query(...), format_id: str = Query("18"), ext: str = Que
     if not HAS_YTDLP:
         raise HTTPException(503, "Sunucuda yt-dlp kurulu değil. pip install yt-dlp")
     tmpdir = tempfile.mkdtemp()
+    # map preset id -> yt-dlp selector
+    if format_id in PRESET_MAP:
+        selector = PRESET_MAP[format_id]
+        # ext override for preset
+        if format_id.startswith("mp4_"):
+            ext = "mp4"
+        elif format_id == "m4a":
+            ext = "m4a"
+        elif format_id == "mp3":
+            ext = "mp3"
+    else:
+        selector = format_id
     # sanitize format
     is_mp3 = format_id == "mp3" or ext == "mp3"
     if is_mp3:
         ydl_opts = {
-            "format": "bestaudio/best",
+            "format": selector if selector not in ("mp3","") else "bestaudio/best",
             "outtmpl": os.path.join(tmpdir, "%(title).80s.%(ext)s"),
             "postprocessors": [{"key":"FFmpegExtractAudio","preferredcodec":"mp3","preferredquality":"192"}],
             "quiet": True,
         }
     else:
+        # for mp4 presets ensure merging
         ydl_opts = {
-            "format": format_id if format_id not in ("mp3","") else "best",
+            "format": selector if selector else "best",
             "outtmpl": os.path.join(tmpdir, "%(title).80s.%(ext)s"),
             "merge_output_format": ext if ext in ("mp4","webm","mkv") else "mp4",
             "quiet": True,

@@ -72,11 +72,11 @@ function mockInfo(url){
     thumbnail: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
     url,
     formats: [
-      {id:'22', label:'MP4 720p', ext:'mp4', quality:'720p', type:'video', size:'~45 MB', hasAudio:true, fps:30},
-      {id:'18', label:'MP4 360p', ext:'mp4', quality:'360p', type:'video', size:'~18 MB', hasAudio:true, fps:30},
-      {id:'137+140', label:'MP4 1080p (en yüksek)', ext:'mp4', quality:'1080p', type:'video', size:'~95 MB', hasAudio:true, fps:60},
-      {id:'140', label:'M4A 128kbps', ext:'m4a', quality:'128kbps', type:'audio', size:'~3.5 MB'},
-      {id:'251', label:'OPUS 160kbps (Müzik için önerilir)', ext:'opus', quality:'160kbps', type:'audio', size:'~4.2 MB'},
+      {id:'mp4_1080', label:'MP4 1080p (MP4)', ext:'mp4', quality:'1080p', type:'video', size:'', hasAudio:true},
+      {id:'mp4_720', label:'MP4 720p (MP4)', ext:'mp4', quality:'720p', type:'video', size:'~45 MB', hasAudio:true, fps:30},
+      {id:'mp4_480', label:'MP4 480p (MP4)', ext:'mp4', quality:'480p', type:'video', size:'~28 MB', hasAudio:true},
+      {id:'mp4_360', label:'MP4 360p (MP4)', ext:'mp4', quality:'360p', type:'video', size:'~18 MB', hasAudio:true, fps:30},
+      {id:'m4a', label:'M4A (Ses)', ext:'m4a', quality:'128kbps', type:'audio', size:'~3.5 MB'},
       {id:'mp3', label:'MP3 320kbps', ext:'mp3', quality:'320kbps', type:'audio', size:'~5 MB'},
     ]
   };
