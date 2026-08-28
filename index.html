@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>İndir Gitsin - YouTube & YouTube Music İndirici</title>
+<meta name="theme-color" content="#FF0033">
+<meta name="description" content="YouTube ve YouTube Music videolarını tek tıkla indir. Link yapıştır veya YouTube'dan paylaş.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<!-- Background blobs -->
+<div class="bg">
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+  <div class="blob blob3"></div>
+</div>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" fill="white" opacity="0.95"/><path d="M2 17l10 5 10-5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/><path d="M2 12l10 5 10-5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><circle cx="12" cy="12" r="3" fill="#FF0033" stroke="white" stroke-width="1"/></svg>
+    </div>
+    <div>
+      <h1>İndir Gitsin</h1>
+      <p>YouTube & Music</p>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="icon-btn" id="themeToggle" title="Tema değiştir">🌙</button>
+    <a href="https://github.com" target="_blank" class="icon-btn" title="GitHub">⬢</a>
+  </div>
+</header>
+
+<main class="container">
+  <!-- Hero Card -->
+  <section class="hero-card glass">
+    <div class="hero-badge">✨ YouTube • YouTube Music • Shorts • Playlist</div>
+    <h2 class="hero-title">Linki yapıştır, <span class="gradient-text">indir gitsin.</span></h2>
+    <p class="hero-sub">YouTube uygulamasından <b>Paylaş → İndir Gitsin</b> diyerek de indirebilirsin.</p>
+
+    <div class="input-group">
+      <div class="input-wrapper">
+        <span class="input-icon">🔗</span>
+        <input id="urlInput" type="url" placeholder="https://youtube.com/watch?v=... veya https://music.youtube.com/..." autocomplete="off" spellcheck="false">
+        <button id="pasteBtn" class="paste-btn" title="Panodan yapıştır">Yapıştır</button>
+        <button id="clearBtn" class="clear-btn hidden" title="Temizle">✕</button>
+      </div>
+      <button id="analyzeBtn" class="primary-btn">
+        <span id="analyzeText">Çözümle</span>
+        <span id="analyzeSpinner" class="spinner hidden"></span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+
+    <div class="chips">
+      <button class="chip" data-sample="https://www.youtube.com/watch?v=jNQXAC9IVRw">Örnek: YouTube</button>
+      <button class="chip" data-sample="https://music.youtube.com/watch?v=jNQXAC9IVRw">Örnek: Music</button>
+      <button class="chip" data-sample="https://youtu.be/jNQXAC9IVRw">Örnek: youtu.be</button>
+      <button class="chip" data-sample="https://www.youtube.com/shorts/jNQXAC9IVRw">Örnek: Shorts</button>
+    </div>
+
+    <div class="howto">
+      <div class="howto-item"><span>1</span><p><b>Linki kopyala</b><br>YouTube veya Music'ten</p></div>
+      <div class="howto-arrow">→</div>
+      <div class="howto-item"><span>2</span><p><b>Yapıştır</b><br>veya Paylaş → İndir Gitsin</p></div>
+      <div class="howto-arrow">→</div>
+      <div class="howto-item"><span>3</span><p><b>Kalite seç & indir</b><br>MP4 / MP3 / Audio</p></div>
+    </div>
+  </section>
+
+  <!-- Status -->
+  <div id="statusBox" class="status hidden"></div>
+
+  <!-- Video Preview -->
+  <section id="previewCard" class="preview-card glass hidden">
+    <div class="preview-thumb-wrap">
+      <img id="thumb" src="" alt="thumbnail">
+      <span id="duration" class="duration-badge">00:00</span>
+      <span id="sourceBadge" class="source-badge">YouTube</span>
+    </div>
+    <div class="preview-info">
+      <h3 id="videoTitle">Video Başlığı</h3>
+      <p id="videoChannel">Kanal • 1.2M görüntüleme</p>
+      <p id="videoMeta" class="meta"></p>
+      <div class="preview-actions">
+        <button id="previewPlay" class="ghost-btn">▶ Önizle</button>
+        <a id="openYt" href="#" target="_blank" class="ghost-btn">↗ YouTube'da aç</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download Options -->
+  <section id="optionsCard" class="options-card glass hidden">
+    <div class="options-header">
+      <h3>İndirme Seçenekleri</h3>
+      <div class="filter-tabs">
+        <button class="tab active" data-filter="all">Tümü</button>
+        <button class="tab" data-filter="video">Video</button>
+        <button class="tab" data-filter="audio">Ses / MP3</button>
+      </div>
+    </div>
+    <div id="optionsList" class="options-list"></div>
+    <p class="hint">💡 İpucu: Android'de indirilenler <code>İndirilenler/İndirGitsin</code> klasörüne kaydedilir.</p>
+  </section>
+
+  <!-- History -->
+  <section id="historyCard" class="history-card glass">
+    <div class="history-header">
+      <h3>Geçmiş</h3>
+      <button id="clearHistory" class="ghost-btn small">Temizle</button>
+    </div>
+    <div id="historyList" class="history-list">
+      <p class="empty">Henüz indirme yok. İlk linkini yapıştır!</p>
+    </div>
+  </section>
+</main>
+
+<nav class="bottom-nav glass">
+  <button class="nav-item active"><span>⬇</span> İndir</button>
+  <button class="nav-item" onclick="document.getElementById('historyCard').scrollIntoView({behavior:'smooth'})"><span>🕘</span> Geçmiş</button>
+  <button class="nav-item" onclick="alert('İndir Gitsin v1.0\nYouTube & Music destekli\n\nShare Intent: YouTube → Paylaş → İndir Gitsin\nGitHub push → otomatik Release & APK')"><span>ℹ</span> Hakkında</button>
+</nav>
+
+<!-- Download progress modal -->
+<div id="progressModal" class="modal hidden">
+  <div class="modal-content glass">
+    <h3>İndiriliyor...</h3>
+    <p id="progressTitle">Video hazırlanıyor</p>
+    <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+    <p id="progressText">0%</p>
+    <button id="cancelDl" class="ghost-btn">İptal</button>
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

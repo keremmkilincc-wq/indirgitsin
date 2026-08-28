@@ -1,0 +1,15 @@
+{
+  "appId": "com.indirgitsin.app",
+  "appName": "İndir Gitsin",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0a0a0f"
+    }
+  }
+}

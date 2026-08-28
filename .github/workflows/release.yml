@@ -1,0 +1,121 @@
+name: Build & Release APK - İndir Gitsin
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install deps
+        run: |
+          npm install
+          pip install -r server/requirements.txt || true
+
+      - name: Init Capacitor (if not exists)
+        run: |
+          if [ ! -d "android" ] || [ ! -f "android/gradlew" ]; then
+            npx cap add android || npx cap add android --web-dir .
+          fi
+          npx cap sync android || true
+
+      - name: Patch AndroidManifest for Share Intent
+        run: |
+          # Manifest'i repo içindekiyle birleştir (SEND intent yoksa ekle)
+          if [ -f "android/app/src/main/AndroidManifest.xml" ]; then
+            echo "Patching AndroidManifest.xml..."
+            # Basit kontrol: SEND yoksa ekle (gradle patch yerine dosyayı overwrite etsek de olur)
+            if ! grep -q "android.intent.action.SEND" android/app/src/main/AndroidManifest.xml; then
+              cp android/app/src/main/AndroidManifest.xml android/app/src/main/AndroidManifest.xml.bak || true
+              cp .github/workflows/AndroidManifest.patch.xml android/app/src/main/AndroidManifest.xml 2>/dev/null || echo "Patch file not found, keeping original"
+            fi
+          fi
+          cat android/app/src/main/AndroidManifest.xml || true
+
+      - name: Build Debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Build Release APK (unsigned)
+        working-directory: android
+        run: |
+          ./gradlew assembleRelease --stacktrace || echo "Release build skipped (needs signing)"
+        continue-on-error: true
+
+      - name: Find APKs
+        run: |
+          find android -name "*.apk" -type f | head -20
+          ls -lh android/app/build/outputs/apk/debug/ || true
+          ls -lh android/app/build/outputs/apk/release/ || true
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: indir-gitsin-apk
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
+
+      - name: Create GitHub Release
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: "İndir Gitsin v${{ github.run_number }}"
+          body: |
+            ## İndir Gitsin - Otomatik Sürüm
+
+            **Commit:** ${{ github.sha }}
+            **Tarih:** ${{ github.event.head_commit.timestamp }}
+
+            ### Yenilikler
+            - YouTube & YouTube Music desteği
+            - Paylaş → İndir Gitsin entegrasyonu
+            - Modern glassmorphism arayüz
+
+            ### Kurulum
+            APK dosyasını indirip Android cihazına yükle (Bilinmeyen kaynaklara izin ver).
+
+            ### Test (APK olmadan)
+            `python server/app.py` ile tarayıcıdan http://localhost:8000 üzerinden test edilebilir.
+
+          files: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/apk/release/*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
