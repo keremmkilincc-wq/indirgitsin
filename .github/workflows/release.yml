@@ -44,23 +44,24 @@ jobs:
 
       - name: Init Capacitor (if not exists)
         run: |
-          if [ ! -d "android" ] || [ ! -f "android/gradlew" ]; then
-            npx cap add android || npx cap add android --web-dir .
+          if [ ! -f "android/gradlew" ]; then
+            echo "android/gradlew missing -> (re)creating android platform"
+            rm -rf android
+            npx cap add android
           fi
           npx cap sync android || true
+          npx cap copy android || true
 
       - name: Patch AndroidManifest for Share Intent
         run: |
-          # Manifest'i repo içindekiyle birleştir (SEND intent yoksa ekle)
-          if [ -f "android/app/src/main/AndroidManifest.xml" ]; then
-            echo "Patching AndroidManifest.xml..."
-            # Basit kontrol: SEND yoksa ekle (gradle patch yerine dosyayı overwrite etsek de olur)
-            if ! grep -q "android.intent.action.SEND" android/app/src/main/AndroidManifest.xml; then
-              cp android/app/src/main/AndroidManifest.xml android/app/src/main/AndroidManifest.xml.bak || true
-              cp .github/workflows/AndroidManifest.patch.xml android/app/src/main/AndroidManifest.xml 2>/dev/null || echo "Patch file not found, keeping original"
-            fi
+          TEMPLATE=".github/AndroidManifest.xml"
+          TARGET="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$TEMPLATE" ]; then
+            echo "Applying Share Intent manifest from $TEMPLATE -> $TARGET"
+            cp "$TEMPLATE" "$TARGET"
           fi
-          cat android/app/src/main/AndroidManifest.xml || true
+          grep -q "android.intent.action.SEND" "$TARGET" && echo "SEND intent OK" || echo "SEND intent MISSING"
+          cat "$TARGET" || true
 
       - name: Build Debug APK
         working-directory: android
