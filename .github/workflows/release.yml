@@ -37,6 +37,13 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Prepare web assets
+        run: |
+          mkdir -p www
+          cp index.html manifest.json www/ 2>/dev/null || true
+          cp -r assets www/ 2>/dev/null || true
+          ls -R www || true
+
       - name: Install deps
         run: |
           npm install
@@ -49,8 +56,7 @@ jobs:
             rm -rf android
             npx cap add android
           fi
-          npx cap sync android || true
-          npx cap copy android || true
+          npx cap sync android
 
       - name: Patch AndroidManifest for Share Intent
         run: |

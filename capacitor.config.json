@@ -1,7 +1,7 @@
 {
   "appId": "com.indirgitsin.app",
   "appName": "İndir Gitsin",
-  "webDir": ".",
+  "webDir": "www",
   "server": {
     "androidScheme": "https"
   },

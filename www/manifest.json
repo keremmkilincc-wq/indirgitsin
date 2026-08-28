@@ -1,0 +1,34 @@
+{
+  "name": "İndir Gitsin - YouTube & Music İndirici",
+  "short_name": "İndirGitsin",
+  "description": "YouTube ve YouTube Music videolarını tek tıkla indir. Link yapıştır veya YouTube'dan Paylaş.",
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#FF0033",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "shortcuts": [
+    {
+      "name": "Link Yapıştır & İndir",
+      "url": "/",
+      "description": "Panodaki linki çözümle"
+    }
+  ]
+}
