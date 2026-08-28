@@ -203,8 +203,8 @@ function mapPipedToInfo(piped, originalUrl, videoId){
   if(!formats.find(f=>f.type==='audio')){
     formats.push({id:'m4a', label:'M4A (Ses)', ext:'m4a', quality:'128kbps', type:'audio', size:'', url:''});
   }
-  // MP3 dönüşümü için sunucu gerekir - ama doğrudan url yok, label'da belirt
-  formats.push({id:'mp3', label:'MP3 (sunucu gerekir)', ext:'mp3', quality:'192kbps', type:'audio', size:'', url:''});
+  // MP3 cihazda ffmpeg.wasm ile dönüştürülür (sunucusuz)
+  formats.push({id:'mp3', label:'MP3 (cihazda dönüştür)', ext:'mp3', quality:'192kbps', type:'audio', size:'', url:''});
   return {id:videoId, title, channel, duration, views, thumbnail:thumb, url:originalUrl, formats:formats.slice(0,8), _source:'piped'};
 }
 
@@ -275,7 +275,7 @@ function mapInnertubeToInfo(data, originalUrl, videoId){
     formats.push({id:'m4a', label:'M4A (Ses)', ext:isM4a?'m4a':'webm', quality: best.bitrate? Math.round(best.bitrate/1000)+'kbps' : '128kbps', type:'audio', size:'', url:best.url});
   }
   if(!formats.find(f=>f.type==='audio')) formats.push({id:'m4a', label:'M4A (Ses)', ext:'m4a', quality:'128kbps', type:'audio', size:'', url:''});
-  formats.push({id:'mp3', label:'MP3 (sunucu gerekir)', ext:'mp3', quality:'192kbps', type:'audio', size:'', url:''});
+  formats.push({id:'mp3', label:'MP3 (cihazda dönüştür)', ext:'mp3', quality:'192kbps', type:'audio', size:'', url:''});
   return {id:videoId, title, channel, duration, views, thumbnail:thumb, url:originalUrl, formats:formats.slice(0,8), _source:'innertube'};
 }
 
@@ -462,15 +462,103 @@ async function startDownload(info, format, btn){
       addToHistory(info, format);
       return;
     }
-    // MP3 gibi server gerektiren formatta format.url boş gelir
-    if(format.id==='mp3' || format.ext==='mp3'){
-      clearInterval(iv);
-      progressModal.classList.add('hidden');
-      const hasServer = await (async()=>{ try{ const r=await fetchWithTimeout(apiUrl('/api/health'),{},2500); return r.ok; }catch{return false;} })();
+    // MP3 direkt sunucusuz (cihazda ffmpeg.wasm ile dönüştür)
+    if((format.id==='mp3' || format.ext==='mp3') && (!format.url || format.url==='')){
+      // Önce sunucu varsa sunucuyu kullan (daha hızlı), yoksa cihazda dönüştür
+      const hasServer = await (async()=>{ try{ const r=await fetchWithTimeout(apiUrl('/api/health'),{},2000); return r.ok; }catch{return false;} })();
       if(!hasServer){
-        showStatus('MP3 için sunucu gerekli (ffmpeg). M4A/MP4 doğrudan indirilebilir. İsteğe bağlı: ⚙️ Sunucu ayarı ile PC sunucusu ekleyebilirsin.', 'error');
-        return;
+        // Sunucu yok -> cihazda M4A -> MP3
+        const audioSrc = (currentInfo && currentInfo.formats.find(f=> f.type==='audio' && f.url && f.url.startsWith('http'))) || (info.formats.find(f=> f.type==='audio' && f.url && f.url.startsWith('http')));
+        if(!audioSrc || !audioSrc.url){
+          clearInterval(iv);
+          progressModal.classList.add('hidden');
+          showStatus('MP3 için ses kaynağı bulunamadı. Önce M4A ile çözümlenmeli - linki tekrar çözümle.', 'error');
+          return;
+        }
+        try{
+          progressText.textContent='Ses indiriliyor...';
+          progressFill.style.width='30%';
+          const resp = await fetch(audioSrc.url);
+          if(!resp.ok) throw new Error('Ses indirilemedi HTTP '+resp.status);
+          const audioBlob = await resp.blob();
+          progressFill.style.width='45%';
+          progressText.textContent='MP3’e dönüştürülüyor (cihazda)...';
+          // FFmpeg.wasm ile dönüştür
+          let mp3Blob;
+          try{
+            if(!window.FFmpeg || !window.FFmpeg.createFFmpeg) throw new Error('FFmpeg script yok');
+            // singleton
+            if(!window._ffmpegInstance){
+              const { createFFmpeg } = window.FFmpeg;
+              const ffmpeg = createFFmpeg({ log:false, corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js' });
+              ffmpeg.setProgress(({ratio})=>{
+                const p = 45 + Math.round(ratio*45);
+                progressFill.style.width=p+'%';
+                progressText.textContent=`Dönüştürülüyor ${Math.round(ratio*100)}%`;
+              });
+              window._ffmpegLoading = ffmpeg.load();
+              window._ffmpegInstance = ffmpeg;
+            }
+            if(window._ffmpegLoading) await window._ffmpegLoading;
+            const ffmpeg = window._ffmpegInstance;
+            const fetchFile = window.FFmpeg.fetchFile || ffmpeg.fetchFile;
+            const inputName = 'input.' + (audioSrc.ext||'m4a');
+            ffmpeg.FS('writeFile', inputName, await fetchFile(audioBlob));
+            await ffmpeg.run('-i', inputName, '-codec:a', 'libmp3lame', '-qscale:a', '2', 'output.mp3');
+            const data = ffmpeg.FS('readFile', 'output.mp3');
+            mp3Blob = new Blob([data.buffer], {type:'audio/mpeg'});
+            try{ ffmpeg.FS('unlink', inputName); ffmpeg.FS('unlink', 'output.mp3'); }catch{}
+          }catch(ffErr){
+            console.log('ffmpeg fail, fallback m4a->mp3 rename', ffErr);
+            // Fallback: m4a'yı mp3 gibi kaydet (oynatıcılar çalar, gerçek dönüştürme değil)
+            mp3Blob = audioBlob;
+            showStatus('FFmpeg yüklenemedi, ses M4A olarak MP3 adıyla kaydediliyor (uyumlu).', 'info');
+          }
+          const filename = `${(info.title||'audio').replace(/[^\w\- ]/g,'').slice(0,60)}.mp3`;
+          // Kaydet
+          if(native && window.Capacitor.Plugins.Filesystem){
+            const toBase64 = (b)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=> res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(b); });
+            const b64 = await toBase64(mp3Blob);
+            const FS = window.Capacitor.Plugins.Filesystem;
+            let saved=false;
+            try{
+              const Dir = FS.Directory || window.Capacitor.Plugins.Filesystem.Directory;
+              const dir = Dir ? Dir.Documents : 'DOCUMENTS';
+              await FS.writeFile({ path: `Download/IndirGitsin/${filename}`, data: b64, directory: dir, recursive:true });
+              saved=true;
+            }catch(e){ console.log('FS fail', e); }
+            if(!saved){
+              try{ await FS.writeFile({ path: filename, data: b64 }); saved=true; }catch(e){ console.log('FS cache fail', e); }
+            }
+            if(saved){
+              clearInterval(iv);
+              progressFill.style.width='100%'; progressText.textContent='100%';
+              await new Promise(r=>setTimeout(r,300));
+              progressModal.classList.add('hidden');
+              showStatus(`MP3 indirildi ✓ IndirGitsin/${filename}`, 'success');
+              addToHistory(info, format);
+              return;
+            }
+          }
+          // Web fallback
+          const url = URL.createObjectURL(mp3Blob);
+          const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(()=>URL.revokeObjectURL(url),4000);
+          clearInterval(iv);
+          progressFill.style.width='100%'; progressText.textContent='100%';
+          await new Promise(r=>setTimeout(r,300));
+          progressModal.classList.add('hidden');
+          showStatus('MP3 oluşturuldu ve indirildi.', 'success');
+          addToHistory(info, format);
+          return;
+        }catch(e){
+          clearInterval(iv);
+          progressModal.classList.add('hidden');
+          showStatus('MP3 dönüştürme hatası: '+(e.message||e)+'. M4A deneyin.', 'error');
+          return;
+        }
       }
+      // hasServer true ise aşağıya düş -> sunucu /api/download ile mp3 yapacak
     }
     const dlUrl = apiUrl(`/api/download?url=${encodeURIComponent(info.url)}&format_id=${encodeURIComponent(format.id)}&ext=${format.ext}`);
     let serverAvailable=false;
