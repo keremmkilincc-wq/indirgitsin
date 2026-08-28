@@ -70,6 +70,36 @@ function apiUrl(path){
 }
 function isNative(){ return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
 
+// Kaydet: Capacitor Filesystem ile public Download klasörüne dene (ExternalStorage -> External -> Documents)
+async function saveToDownloads(filename, b64){
+  const FS = window.Capacitor.Plugins.Filesystem;
+  if(!FS) return {saved:false, error:'no FS'};
+  const Dir = FS.Directory || {};
+  // denenecek klasörler sırayla: ExternalStorage ( /storage/emulated/0 ), External, Documents
+  const tries = [
+    Dir.ExternalStorage ? {dir: Dir.ExternalStorage, path:`Download/IndirGitsin/${filename}`} : null,
+    Dir.External ? {dir: Dir.External, path:`Download/IndirGitsin/${filename}`} : null,
+    Dir.Documents ? {dir: Dir.Documents, path:`Download/IndirGitsin/${filename}`} : null,
+    Dir.Documents ? {dir: Dir.Documents, path:`IndirGitsin/${filename}`} : null,
+    Dir.Data ? {dir: Dir.Data, path:filename} : null,
+  ].filter(Boolean);
+  let lastErr=null;
+  for(const t of tries){
+    try{
+      await FS.writeFile({ path: t.path, data: b64, directory: t.dir, recursive:true });
+      // doğrula
+      try{ const st = await FS.stat({ path: t.path, directory: t.dir }); console.log('saved stat', st); }catch{}
+      return {saved:true, path: t.path, dir: t.dir};
+    }catch(e){ lastErr=e; console.log('save try fail', t, e.message||e); }
+  }
+  // son çare: directory olmadan (cache)
+  try{
+    await FS.writeFile({ path: filename, data: b64 });
+    return {saved:true, path: filename, dir:'CACHE'};
+  }catch(e){ lastErr=e; }
+  return {saved:false, error: lastErr};
+}
+
 // Mock data for offline preview (when server not running)
 function mockInfo(url){
   const id = extractId(url) || 'jNQXAC9IVRw';
@@ -383,27 +413,21 @@ async function startDownload(info, format, btn){
               const blob = await resp.blob();
               const toBase64 = (b)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=> res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(b); });
               const b64 = await toBase64(blob);
-              const FS = window.Capacitor.Plugins.Filesystem;
-              if(FS){
-                let saved=false;
-                try{
-                  const Dir = FS.Directory || window.Capacitor.Plugins.Filesystem.Directory;
-                  const dir = Dir ? Dir.Documents : 'DOCUMENTS';
-                  await FS.writeFile({ path: `Download/IndirGitsin/${filename}`, data: b64, directory: dir, recursive:true });
-                  saved=true;
-                }catch(e){ console.log('FS Documents fail', e); }
-                if(!saved){
-                  try{ await FS.writeFile({ path: filename, data: b64 }); saved=true; }catch(e){ console.log('FS cache fail', e); }
-                }
-                if(saved){
-                  clearInterval(iv);
-                  progressFill.style.width='100%'; progressText.textContent='100%';
-                  await new Promise(r=>setTimeout(r,300));
-                  progressModal.classList.add('hidden');
-                  showStatus(`İndirildi ✓ Kaydedildi: IndirGitsin/${filename}`, 'success');
-                  addToHistory(info, format);
-                  return;
-                }
+              const res = await saveToDownloads(filename, b64);
+              if(res.saved){
+                clearInterval(iv);
+                progressFill.style.width='100%'; progressText.textContent='100%';
+                await new Promise(r=>setTimeout(r,300));
+                progressModal.classList.add('hidden');
+                const loc = res.dir==='CACHE' ? 'uygulama önbelleği' : `İndirilenler/IndirGitsin/${filename}`;
+                showStatus(`İndirildi ✓ Kaydedildi: ${loc}`, 'success');
+                // Galeri/Download görünmesi için tarayıcıya da tetikle
+                try{ const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); }catch{}
+                addToHistory(info, format);
+                return;
+              } else {
+                console.log('saveToDownloads failed', res.error);
+                // Filesystem olmadı -> DownloadManager anchor dene (aşağıya düş)
               }
             }
           }catch(e){ console.log('direct fetch->FS failed', e); }
@@ -519,25 +543,18 @@ async function startDownload(info, format, btn){
           if(native && window.Capacitor.Plugins.Filesystem){
             const toBase64 = (b)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=> res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(b); });
             const b64 = await toBase64(mp3Blob);
-            const FS = window.Capacitor.Plugins.Filesystem;
-            let saved=false;
-            try{
-              const Dir = FS.Directory || window.Capacitor.Plugins.Filesystem.Directory;
-              const dir = Dir ? Dir.Documents : 'DOCUMENTS';
-              await FS.writeFile({ path: `Download/IndirGitsin/${filename}`, data: b64, directory: dir, recursive:true });
-              saved=true;
-            }catch(e){ console.log('FS fail', e); }
-            if(!saved){
-              try{ await FS.writeFile({ path: filename, data: b64 }); saved=true; }catch(e){ console.log('FS cache fail', e); }
-            }
-            if(saved){
+            const res2 = await saveToDownloads(filename, b64);
+            if(res2.saved){
               clearInterval(iv);
               progressFill.style.width='100%'; progressText.textContent='100%';
               await new Promise(r=>setTimeout(r,300));
               progressModal.classList.add('hidden');
-              showStatus(`MP3 indirildi ✓ IndirGitsin/${filename}`, 'success');
+              const loc2 = res2.dir==='CACHE' ? 'önbellek' : `İndirilenler/IndirGitsin/${filename}`;
+              showStatus(`MP3 indirildi ✓ ${loc2} ${res2.dir==='CACHE' ? '(Dosya Yöneticisi > Android/data/com.indirgitsin.app)':''}`, 'success');
               addToHistory(info, format);
               return;
+            } else {
+              console.log('MP3 save fail', res2.error);
             }
           }
           // Web fallback
