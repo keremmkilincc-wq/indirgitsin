@@ -75,34 +75,182 @@ function mockInfo(url){
   const id = extractId(url) || 'jNQXAC9IVRw';
   return {
     id,
-    title: 'Örnek Video - İndir Gitsin Demo (Gerçek indirme için sunucuyu başlatın)',
+    title: 'Örnek Video - İndir Gitsin Demo (Sunucu yok - doğrudan mod deneniyor)',
     channel: 'Demo Kanal',
     duration: 212,
     views: '1.2M',
     thumbnail: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
     url,
     formats: [
-      {id:'mp4_1080', label:'MP4 1080p (MP4)', ext:'mp4', quality:'1080p', type:'video', size:'', hasAudio:true, url:''},
-      {id:'mp4_720', label:'MP4 720p (MP4)', ext:'mp4', quality:'720p', type:'video', size:'~45 MB', hasAudio:true, fps:30, url:''},
-      {id:'mp4_480', label:'MP4 480p (MP4)', ext:'mp4', quality:'480p', type:'video', size:'~28 MB', hasAudio:true, url:''},
-      {id:'mp4_360', label:'MP4 360p (MP4)', ext:'mp4', quality:'360p', type:'video', size:'~18 MB', hasAudio:true, fps:30, url:''},
-      {id:'m4a', label:'M4A (Ses)', ext:'m4a', quality:'128kbps', type:'audio', size:'~3.5 MB', url:''},
-      {id:'mp3', label:'MP3 320kbps', ext:'mp3', quality:'320kbps', type:'audio', size:'~5 MB', url:''},
+      {id:'mp4_360', label:'MP4 360p (MP4)', ext:'mp4', quality:'360p', type:'video', size:'', hasAudio:true, url:''},
+      {id:'m4a', label:'M4A (Ses)', ext:'m4a', quality:'128kbps', type:'audio', size:'', url:''},
     ]
   };
 }
 
-async function fetchInfo(url){
-  // Try real server first (FastAPI), fallback to mock
+// --- Client-side direct extractor (Piped + Innertube) - sunucusuz çalışır ---
+const PIPED_HOSTS = [
+  'https://pipedapi.kavin.rocks',
+  'https://pipedapi.adminforge.de',
+  'https://api.piped.projectsegfau.lt'
+];
+
+async function fetchWithTimeout(url, opts={}, ms=8000){
+  const c = new AbortController();
+  const t = setTimeout(()=>c.abort(), ms);
   try{
-    const r = await fetch(apiUrl(`/api/info?url=${encodeURIComponent(url)}`));
-    if(r.ok){
+    const r = await fetch(url, {...opts, signal:c.signal});
+    clearTimeout(t);
+    return r;
+  }catch(e){ clearTimeout(t); throw e; }
+}
+
+async function fetchViaPiped(videoId){
+  let lastErr=null;
+  for(const host of PIPED_HOSTS){
+    try{
+      const r = await fetchWithTimeout(`${host}/streams/${videoId}`, {}, 7000);
+      if(!r.ok) throw new Error('HTTP '+r.status);
       const j = await r.json();
-      if(j.title) return j;
+      if(!j.title) throw new Error('No title');
+      return j;
+    }catch(e){ lastErr=e; continue; }
+  }
+  throw lastErr || new Error('Piped failed');
+}
+
+function mapPipedToInfo(piped, originalUrl, videoId){
+  const title = piped.title || 'Bilinmeyen Başlık';
+  const channel = piped.uploader || piped.uploaderName || 'YouTube';
+  const duration = piped.duration || 0;
+  const thumb = piped.thumbnailUrl || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  const views = piped.views ? String(piped.views) : '';
+  const formats=[];
+  // videoStreams: sorted by quality desc, includes itag, quality, mimeType, url, height, fps
+  const vstreams = piped.videoStreams || [];
+  const seenH=new Set();
+  // sadece progressive mp4 (video+audio) öncelik, yoksa en iyi video
+  vstreams.filter(s=> s.mimeType && s.mimeType.includes('video/mp4') && s.url).forEach(s=>{
+    const h = s.height || (s.quality ? parseInt(s.quality) : 0);
+    if(!h || seenH.has(h)) return;
+    seenH.add(h);
+    const fps = s.fps || '';
+    formats.push({id:String(s.itag||h), label:`MP4 ${h}p`, ext:'mp4', quality:`${h}p`, type:'video', size:'', hasAudio: !!s.audioTrack || true, fps:fps, url:s.url});
+  });
+  // fallback: any video/mp4 not yet
+  if(formats.length===0){
+    vstreams.filter(s=> s.url && s.mimeType && s.mimeType.includes('video')).slice(0,4).forEach(s=>{
+      const h=s.height||360; if(seenH.has(h)) return; seenH.add(h);
+      formats.push({id:String(s.itag||h), label:`MP4 ${h}p`, ext:'mp4', quality:`${h}p`, type:'video', size:'', hasAudio:true, url:s.url});
+    });
+  }
+  formats.sort((a,b)=> parseInt(b.quality)-parseInt(a.quality));
+  // audioStreams
+  const astreams = piped.audioStreams || piped.audioOnly || [];
+  let audioUrl='';
+  let abr='128kbps';
+  if(astreams.length){
+    // en iyi m4a/opus seç
+    const best = [...astreams].filter(a=>a.url).sort((a,b)=>(b.bitrate||0)-(a.bitrate||0))[0];
+    if(best){
+      audioUrl=best.url;
+      const ext = best.mimeType && best.mimeType.includes('mp4') ? 'm4a' : (best.mimeType && best.mimeType.includes('webm') ? 'webm' : 'm4a');
+      const bitrate = best.bitrate ? Math.round(best.bitrate/1000)+'kbps' : '128kbps';
+      abr=bitrate;
+      formats.push({id:'m4a', label:'M4A (Ses)', ext:'m4a', quality:abr, type:'audio', size:'', url: audioUrl});
+      // opus da ekle
+      const opus = astreams.find(a=>a.mimeType && a.mimeType.includes('opus') && a.url);
+      if(opus && opus.url!==audioUrl) formats.push({id:'opus', label:'OPUS (Ses)', ext:'opus', quality:opus.quality||abr, type:'audio', size:'', url:opus.url});
     }
-  }catch(e){}
-  // fallback
-  await new Promise(res=>setTimeout(res, 700)); // fake delay for UX
+  }
+  if(!formats.find(f=>f.type==='audio')){
+    formats.push({id:'m4a', label:'M4A (Ses)', ext:'m4a', quality:'128kbps', type:'audio', size:'', url:''});
+  }
+  // MP3 dönüşümü için sunucu gerekir - ama doğrudan url yok, label'da belirt
+  formats.push({id:'mp3', label:'MP3 (sunucu gerekir)', ext:'mp3', quality:'192kbps', type:'audio', size:'', url:''});
+  return {id:videoId, title, channel, duration, views, thumbnail:thumb, url:originalUrl, formats:formats.slice(0,8), _source:'piped'};
+}
+
+async function fetchViaInnertube(videoId){
+  // Direct YouTube Innertube player API - CORS may fail on web, native WebView usually ok
+  const key='AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
+  const body={context:{client:{clientName:'ANDROID', clientVersion:'20.10.38', androidSdkVersion:30, hl:'tr', gl:'TR'}}, videoId, playbackContext:{contentPlaybackContext:{html5Preference:'HTML5_PREF_WANTS'}}, racyCheckOk:true, contentCheckOk:true};
+  const r = await fetchWithTimeout(`https://www.youtube.com/youtubei/v1/player?key=${key}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}, 8000);
+  if(!r.ok) throw new Error('Innertube HTTP '+r.status);
+  const j = await r.json();
+  const details=j.videoDetails||{};
+  const sd=j.streamingData||{};
+  if(!sd.formats && !sd.adaptiveFormats) throw new Error('No streamingData');
+  return {details, streamingData:sd};
+}
+
+function mapInnertubeToInfo(data, originalUrl, videoId){
+  const details=data.details||{};
+  const sd=data.streamingData||{};
+  const title=details.title||'Bilinmeyen Başlık';
+  const channel=details.author||'YouTube';
+  const duration=parseInt(details.lengthSeconds||0);
+  const thumb=(details.thumbnail && details.thumbnail.thumbnails && details.thumbnail.thumbnails.slice(-1)[0].url) || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  const views=details.viewCount||'';
+  const formats=[];
+  // sd.formats are progressive (video+audio, direct download friendly)
+  (sd.formats||[]).filter(f=>f.url).forEach(f=>{
+    const h=f.height||0;
+    const ext=(f.mimeType||'').includes('mp4')?'mp4':'webm';
+    if(ext!=='mp4') return;
+    formats.push({id:String(f.itag), label:`MP4 ${h}p`, ext:'mp4', quality:`${h}p`, type:'video', size:'', hasAudio:true, fps:f.fps||'', url:f.url});
+  });
+  formats.sort((a,b)=> parseInt(b.quality)-parseInt(a.quality));
+  // adaptive audio only
+  const audios=(sd.adaptiveFormats||[]).filter(f=>f.mimeType && f.mimeType.includes('audio') && f.url);
+  if(audios.length){
+    audios.sort((a,b)=>(b.bitrate||0)-(a.bitrate||0));
+    const best=audios[0];
+    const isM4a=(best.mimeType||'').includes('mp4');
+    formats.push({id:'m4a', label:'M4A (Ses)', ext:isM4a?'m4a':'webm', quality: best.bitrate? Math.round(best.bitrate/1000)+'kbps' : '128kbps', type:'audio', size:'', url:best.url});
+  }
+  if(!formats.find(f=>f.type==='audio')) formats.push({id:'m4a', label:'M4A (Ses)', ext:'m4a', quality:'128kbps', type:'audio', size:'', url:''});
+  formats.push({id:'mp3', label:'MP3 (sunucu gerekir)', ext:'mp3', quality:'192kbps', type:'audio', size:'', url:''});
+  return {id:videoId, title, channel, duration, views, thumbnail:thumb, url:originalUrl, formats:formats.slice(0,8), _source:'innertube'};
+}
+
+async function fetchInfoClientSide(url){
+  const vid=extractId(url);
+  if(!vid) throw new Error('Video ID bulunamadı');
+  // 1) Piped
+  try{
+    const piped=await fetchViaPiped(vid);
+    return mapPipedToInfo(piped, url, vid);
+  }catch(e){ console.log('Piped failed', e); }
+  // 2) Innertube
+  try{
+    const inn=await fetchViaInnertube(vid);
+    return mapInnertubeToInfo(inn, url, vid);
+  }catch(e){ console.log('Innertube failed', e); throw e; }
+}
+
+async function fetchInfo(url){
+  // 1) Backend varsa dene (isteğe bağlı, zorunlu değil)
+  const base=getApiBase();
+  // sadece base varsa veya localhost ise backend dene - boş base'te /api 404 ise direkt client'a geç
+  try{
+    // if no base and not localhost, skip backend to avoid 404 delay on APK
+    const shouldTryBackend = !!base || location.hostname==='localhost' || location.hostname==='127.0.0.1';
+    if(shouldTryBackend){
+      const r = await fetchWithTimeout(apiUrl(`/api/info?url=${encodeURIComponent(url)}`), {}, 4000);
+      if(r.ok){
+        const j = await r.json();
+        if(j.title) return j;
+      }
+    }
+  }catch(e){ console.log('backend info failed', e); }
+  // 2) Client-side direct (sunucusuz)
+  try{
+    const info = await fetchInfoClientSide(url);
+    if(info && info.title) return info;
+  }catch(e){ console.log('client-side failed', e); }
+  // 3) fallback mock (demo)
+  await new Promise(res=>setTimeout(res, 400));
   return mockInfo(url);
 }
 
@@ -156,20 +304,22 @@ async function startDownload(info, format, btn){
 
   try{
     const native = isNative();
-    // 1) Doğrudan CDN (A) - format.url varsa proxy'ye gerek yok, mobilde PC'siz çalışır
+    // 1) Doğrudan CDN - sunucusuz, cihaz doğrudan indirir (öncelikli)
     if(format.url && format.url.startsWith('http')){
       clearInterval(iv);
       progressFill.style.width='100%'; progressText.textContent='100%';
       await new Promise(r=>setTimeout(r,300));
       progressModal.classList.add('hidden');
       let filename = `${(info.title||'video').replace(/[^\w\- ]/g,'').slice(0,60)}.${format.ext}`;
+      // native APK: önce sistem tarayıcısı / Download manager, web: <a download>
       try{
         if(native && window.Capacitor.Plugins.Browser){
           await window.Capacitor.Plugins.Browser.open({ url: format.url });
-          showStatus('Doğrudan indirme tarayıcıda açıldı (CDN).', 'success');
+          showStatus('Doğrudan indirme başlatıldı (cihaza kaydediliyor)...', 'success');
         } else {
+          // CORS nedeniyle direkt <a> bazen çalışmaz, yine de dene
           const a=document.createElement('a'); a.href=format.url; a.download=filename; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove();
-          showStatus('Doğrudan indirme başlatıldı (CDN).', 'success');
+          showStatus('Doğrudan indirme başlatıldı.', 'success');
         }
       }catch{
         window.open(format.url, '_blank');
@@ -177,6 +327,16 @@ async function startDownload(info, format, btn){
       }
       addToHistory(info, format);
       return;
+    }
+    // MP3 gibi server gerektiren formatta format.url boş gelir
+    if(format.id==='mp3' || format.ext==='mp3'){
+      clearInterval(iv);
+      progressModal.classList.add('hidden');
+      const hasServer = await (async()=>{ try{ const r=await fetchWithTimeout(apiUrl('/api/health'),{},2500); return r.ok; }catch{return false;} })();
+      if(!hasServer){
+        showStatus('MP3 için sunucu gerekli (ffmpeg). M4A/MP4 doğrudan indirilebilir. İsteğe bağlı: ⚙️ Sunucu ayarı ile PC sunucusu ekleyebilirsin.', 'error');
+        return;
+      }
     }
     const dlUrl = apiUrl(`/api/download?url=${encodeURIComponent(info.url)}&format_id=${encodeURIComponent(format.id)}&ext=${format.ext}`);
     let serverAvailable=false;
@@ -269,17 +429,16 @@ async function startDownload(info, format, btn){
       return;
     }
 
-    // Mock download (demo - server yokken)
-    await new Promise(r=>setTimeout(r, 1200));
-    clearInterval(iv);
-    progressFill.style.width='100%'; progressText.textContent='100%';
-    await new Promise(r=>setTimeout(r,300));
-    progressModal.classList.add('hidden');
-    const blob = new Blob([`Demo dosya: ${info.title}\nFormat: ${format.label}\nURL: ${info.url}\n\nGerçek indirme için Python sunucusunu başlatın: python server/app.py`], {type:'text/plain'});
-    const url = URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download=`${info.id}_${format.ext}.txt`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000);
-    showStatus('Demo indirildi (gerçek video için sunucuyu başlatın).', 'info');
-    addToHistory(info, format);
+    // Server gerekli ama yok - demo değil, doğrudan alternatif dene
+    if(!format.url){
+      // Son çare: Piped/Innertube'dan url alınamadıysa bilgi ver
+      await new Promise(r=>setTimeout(r, 400));
+      clearInterval(iv);
+      progressFill.style.width='0%'; progressText.textContent='0%';
+      progressModal.classList.add('hidden');
+      showStatus('Bu format için doğrudan link alınamadı. Başka kalite/M4A dene veya ⚙️ Sunucu ayarı ile backend ekle.', 'error');
+      return;
+    }
   }catch(e){
     clearInterval(iv);
     progressModal.classList.add('hidden');
@@ -396,7 +555,7 @@ $('#themeToggle').addEventListener('click', ()=>{
   applyTheme(next);
 });
 
-// Sunucu ayarı (API base) - Mobil APK için
+// Sunucu ayarı (API base) - İSTEĞE BAĞLI, varsayılan doğrudan mod
 (function(){
   const settingsModal=$('#settingsModal');
   const settingsBtn=$('#settingsBtn');
@@ -411,22 +570,19 @@ $('#themeToggle').addEventListener('click', ()=>{
   function updateServerStatus(){
     const base=getApiBase();
     const isN=isNative();
+    // Sunucusuz doğrudan mod varsayılan - backend sadece yüksek kalite/MP3 için opsiyonel
     fetch(apiUrl('/api/health')).then(r=>r.ok?r.json():Promise.reject()).then(j=>{
-      const ff=j.ffmpeg ? 'ffmpeg ✓' : 'ffmpeg ✗ (sadece M4A)';
-      const baseTxt = base ? base : (isN ? 'https://localhost (APK yerel - çalışmaz!)' : 'yerel /api');
-      if(serverStatus) serverStatus.innerHTML=`Sunucu: <b style="color:#10b981">Bağlı</b> • ${ff} • <code>${baseTxt}</code>`;
+      const ff=j.ffmpeg ? 'ffmpeg ✓' : 'ffmpeg ✗';
+      const baseTxt = base ? base : 'yerel /api';
+      if(serverStatus) serverStatus.innerHTML=`Doğrudan mod: <b style="color:#10b981">Aktif ✓</b> • Sunucu: <b style="color:#10b981">Bağlı</b> • ${ff} • <code>${baseTxt}</code> <span style="font-size:11px;opacity:0.7">(MP3/yüksek kalite için)</span>`;
       if(apiTestResult && settingsModal && !settingsModal.classList.contains('hidden')){
         apiTestResult.textContent=`✓ Bağlı — yt-dlp: ${j.yt_dlp ? 'var' : 'yok'}, ${ff}`; apiTestResult.style.color='#10b981';
       }
     }).catch(()=>{
-      const baseTxt = base ? base : (isN ? 'https://localhost (APK yerel)' : '/api');
-      if(serverStatus) serverStatus.innerHTML=`Sunucu: <b style="color:#ef4444">Bağlı değil</b> • <code>${baseTxt}</code> ${isN ? '→ ⚙️ ile PC IP gir' : ''}`;
+      const baseTxt = base ? base : 'yok (doğrudan mod)';
+      if(serverStatus) serverStatus.innerHTML=`Doğrudan mod: <b style="color:#10b981">Aktif ✓</b> • Sunucu: <b style="color:#6b7280">Gerekli değil</b> • <code>${baseTxt}</code> <span style="font-size:11px;opacity:0.7">MP4/M4A doğrudan cihaza iner • MP3 için ⚙️ isteğe bağlı</span>`;
       if(apiTestResult && settingsModal && !settingsModal.classList.contains('hidden')){
-        apiTestResult.textContent=`✗ Bağlanamadı (${base||'/api'})`; apiTestResult.style.color='#ef4444';
-      }
-      // native'de otomatik uyarı
-      if(isN && !base && serverStatus){
-        showStatus('Mobilde indirme için ⚙️ Sunucu ayarı → PC IP girin (aynı Wi-Fi).', 'info');
+        apiTestResult.textContent=`Sunucu yok — ama doğrudan indirme aktif (Piped/Innertube). MP3 için sunucu ekleyebilirsin.`; apiTestResult.style.color='#6b7280';
       }
     });
   }
