@@ -88,9 +88,22 @@
       <span id="sourceBadge" class="source-badge">YouTube</span>
     </div>
     <div class="preview-info">
-      <h3 id="videoTitle">Video Başlığı</h3>
-      <p id="videoChannel">Kanal • 1.2M görüntüleme</p>
-      <p id="videoMeta" class="meta"></p>
+      <div style="display:flex;align-items:start;gap:8px">
+        <div style="flex:1;min-width:0">
+          <h3 id="videoTitle">Video Başlığı</h3>
+          <p id="videoChannel">Kanal • 1.2M görüntüleme</p>
+          <p id="videoMeta" class="meta"></p>
+        </div>
+        <div style="position:relative;flex-shrink:0">
+          <button id="moreBtn" class="icon-btn" style="width:36px;height:36px;border-radius:10px;font-size:18px;line-height:1" title="Seçenekler">⋮</button>
+          <div id="moreMenu" class="more-menu hidden glass">
+            <button data-action="m4a">🎵 M4A indir</button>
+            <button data-action="mp3">🎵 MP3 indir</button>
+            <button data-action="video">🎬 Video indir (720p)</button>
+            <button data-action="copy">🔗 Linki kopyala</button>
+          </div>
+        </div>
+      </div>
       <div class="preview-actions">
         <button id="previewPlay" class="ghost-btn">▶ Önizle</button>
         <a id="openYt" href="#" target="_blank" class="ghost-btn">↗ YouTube'da aç</a>

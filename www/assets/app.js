@@ -398,9 +398,30 @@ function renderOptions(info){
       <div class="option-main"><b>${f.label}</b><span>${f.ext.toUpperCase()} • ${f.size} ${f.fps? '• '+f.fps+'fps':''}</span></div>
       <div class="option-meta">${f.quality}</div>
       <button class="download-btn">İndir</button>
+      <button class="icon-btn more-opt-btn" title="Seçenekler" style="width:36px;height:36px;border-radius:10px;font-size:16px">⋮</button>
     `;
     const btn = div.querySelector('.download-btn');
     btn.addEventListener('click', ()=> startDownload(info, f, btn));
+    // 3-nokta: hızlı müzik indir (aynı menü mantığı - küçük dropdown)
+    const moreBtn = div.querySelector('.more-opt-btn');
+    moreBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      // Hızlı: doğrudan bu formatı indir zaten - ama 3 nokta için ek menü: M4A/MP3 kısayol
+      // Basit: bu satırın formatını kopyala / paylaş
+      const menu = document.createElement('div');
+      menu.className='more-menu glass';
+      menu.style.position='absolute'; menu.style.right='10px'; menu.style.zIndex='10';
+      menu.innerHTML=`<button data-a="copy">🔗 Linki kopyala</button><button data-a="m4a">🎵 M4A olarak indir</button><button data-a="mp3">🎵 MP3 olarak indir</button>`;
+      menu.style.minWidth='180px';
+      div.style.position='relative';
+      // eski menü varsa sil
+      div.querySelectorAll('.more-menu').forEach(m=>m.remove());
+      div.appendChild(menu);
+      menu.querySelector('[data-a="copy"]').onclick=async()=>{ try{ await navigator.clipboard.writeText(info.url); showStatus('Link kopyalandı','success'); }catch{ showStatus(info.url,'info'); } menu.remove(); };
+      menu.querySelector('[data-a="m4a"]').onclick=()=>{ menu.remove(); const aFmt = info.formats.find(x=> x.type==='audio' && x.ext==='m4a' && x.url) || info.formats.find(x=> x.type==='audio' && x.url); if(aFmt) startDownload(info, aFmt, btn); else showStatus('M4A bulunamadı','error'); };
+      menu.querySelector('[data-a="mp3"]').onclick=()=>{ menu.remove(); const mp3Fmt = info.formats.find(x=> x.id==='mp3') || info.formats.find(x=> x.ext==='mp3'); if(mp3Fmt) startDownload(info, mp3Fmt, btn); else showStatus('MP3 bulunamadı','error'); };
+      setTimeout(()=>{ const h=(ev)=>{ if(!menu.contains(ev.target) && ev.target!==moreBtn){ menu.remove(); document.removeEventListener('click', h); } }; document.addEventListener('click', h); }, 50);
+    });
     optionsList.appendChild(div);
   });
   optionsCard.classList.remove('hidden');
@@ -408,6 +429,47 @@ function renderOptions(info){
     optionsList.innerHTML='<p class="empty">Bu filtrede seçenek yok.</p>';
   }
 }
+
+// Preview 3-nokta menüsü: video ekranı müzikte de aynı - 3 noktadan M4A/MP3 direkt insin
+(function setupPreviewMoreMenu(){
+  const btn = document.getElementById('moreBtn');
+  const menu = document.getElementById('moreMenu');
+  if(!btn || !menu) return;
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    menu.classList.toggle('hidden');
+  });
+  document.addEventListener('click', (e)=>{
+    if(!menu.contains(e.target) && e.target!==btn) menu.classList.add('hidden');
+  });
+  menu.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const act = b.dataset.action;
+      menu.classList.add('hidden');
+      if(!currentInfo){ showStatus('Önce bir link çözümle','error'); return; }
+      if(act==='copy'){
+        navigator.clipboard.writeText(currentInfo.url).then(()=> showStatus('Link kopyalandı','success')).catch(()=> showStatus(currentInfo.url,'info'));
+        return;
+      }
+      if(act==='m4a'){
+        const f = currentInfo.formats.find(x=> x.type==='audio' && x.ext==='m4a' && x.url) || currentInfo.formats.find(x=> x.type==='audio' && x.url);
+        if(f) startDownload(currentInfo, f, b);
+        else showStatus('M4A bulunamadı, seçeneklerden dene','error');
+        return;
+      }
+      if(act==='mp3'){
+        const f = currentInfo.formats.find(x=> x.id==='mp3') || currentInfo.formats.find(x=> x.ext==='mp3');
+        if(f) startDownload(currentInfo, f, b);
+        else showStatus('MP3 bulunamadı','error');
+        return;
+      }
+      if(act==='video'){
+        const f = currentInfo.formats.find(x=> x.type==='video' && x.url) || currentInfo.formats[0];
+        if(f) startDownload(currentInfo, f, b);
+      }
+    });
+  });
+})();
 
 async function startDownload(info, format, btn){
   btn.disabled=true; btn.textContent='Hazırlanıyor...';

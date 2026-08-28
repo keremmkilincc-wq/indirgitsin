@@ -160,3 +160,8 @@ body.light .bottom-nav{background:rgba(255,255,255,0.85);border-color:rgba(15,23
   .ghost-btn{flex-shrink:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .preview-actions{flex-wrap:wrap}
 }
+.more-menu{position:absolute;top:42px;right:0;min-width:190px;padding:6px;display:flex;flex-direction:column;gap:4px;border-radius:14px;z-index:15}
+.more-menu button{padding:10px 12px;border-radius:10px;border:none;background:rgba(255,255,255,0.06);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;text-align:left}
+.more-menu button:hover{background:rgba(255,255,255,0.12)}
+body.light .more-menu button{background:rgba(15,23,42,0.05)}
+body.light .more-menu button:hover{background:rgba(15,23,42,0.1)}
