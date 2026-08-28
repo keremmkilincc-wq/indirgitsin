@@ -58,7 +58,7 @@ jobs:
           fi
           npx cap sync android
 
-      - name: Patch AndroidManifest for Share Intent
+      - name: Patch AndroidManifest & MainActivity for Share Intent
         run: |
           TEMPLATE=".github/AndroidManifest.xml"
           TARGET="android/app/src/main/AndroidManifest.xml"
@@ -68,6 +68,15 @@ jobs:
           fi
           grep -q "android.intent.action.SEND" "$TARGET" && echo "SEND intent OK" || echo "SEND intent MISSING"
           cat "$TARGET" || true
+          # Patch MainActivity to handle SEND -> load https://localhost/?text=
+          JAVA_TMPL=".github/MainActivity.java"
+          JAVA_TARGET="android/app/src/main/java/com/indirgitsin/app/MainActivity.java"
+          if [ -f "$JAVA_TMPL" ]; then
+            echo "Applying custom MainActivity.java"
+            mkdir -p "$(dirname "$JAVA_TARGET")"
+            cp "$JAVA_TMPL" "$JAVA_TARGET"
+            cat "$JAVA_TARGET" || true
+          fi
 
       - name: Build Debug APK
         working-directory: android

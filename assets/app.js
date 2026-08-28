@@ -262,19 +262,85 @@ $('#themeToggle').addEventListener('click', ()=>{
   document.body.style.background=isLight?'#f5f5f7':'#0a0a0f';
 });
 
-// Share Target handling (PWA) - when opened via share
+// Share Target handling (PWA + Native Android SEND)
+function handleSharedText(text){
+  if(!text) return;
+  const m = text.match(/https?:\/\/\S+/);
+  const url = m ? m[0] : text;
+  // clean trailing quotes / whitespace
+  const clean = url.replace(/[\s"']+$/,'').trim();
+  if(isYouTubeUrl(clean)){
+    urlInput.value = clean;
+    urlInput.dispatchEvent(new Event('input'));
+    setTimeout(handleAnalyze, 350);
+    showStatus('Paylaşılan link alındı — çözümleniyor...','info');
+  }
+}
+// expose for MainActivity.evaluateJavascript
+window.handleSharedText = handleSharedText;
+
 (function handleShareTarget(){
   const params=new URLSearchParams(location.search);
-  const sharedUrl=params.get('url')||params.get('text')||params.get('title')||'';
-  const ytMatch = sharedUrl.match(/https?:\/\/\S+/);
-  const candidate = ytMatch? ytMatch[0] : sharedUrl;
-  if(params.get('share')|| candidate.includes('youtube')|| candidate.includes('youtu.be')){
-    if(candidate) { urlInput.value=candidate; setTimeout(handleAnalyze, 400); }
+  // 1) PWA share_target: ?text=&title=&url=
+  const sharedRaw = params.get('text') || params.get('url') || params.get('title') || '';
+  // 2) native redirect: ?text=<youtube url>
+  const directText = params.get('text');
+  let candidate = '';
+  if(directText && isYouTubeUrl(directText)){
+    candidate = directText;
+  } else if(sharedRaw){
+    const ytMatch = sharedRaw.match(/https?:\/\/\S+/);
+    candidate = ytMatch ? ytMatch[0] : sharedRaw;
   }
-  // also check if page was loaded with text param from Android share
-  if(params.get('text') && isYouTubeUrl(params.get('text'))){
-    urlInput.value=params.get('text'); setTimeout(handleAnalyze,400);
+  // YouTube contains check
+  if(candidate && (candidate.includes('youtube') || candidate.includes('youtu.be') || isYouTubeUrl(candidate))){
+    // decode twice in case double-encoded from MainActivity
+    try{ candidate = decodeURIComponent(candidate); }catch{}
+    try{ candidate = decodeURIComponent(candidate); }catch{}
+    handleSharedText(candidate);
+    // clean URL without reload loop: history replace
+    try{ history.replaceState({}, '', location.pathname); }catch{}
+    return;
   }
+  // also handle ?url= directly
+  if(params.get('url') && isYouTubeUrl(params.get('url'))){
+    handleSharedText(params.get('url'));
+    try{ history.replaceState({}, '', location.pathname); }catch{}
+  }
+})();
+
+// Capacitor App plugin - handle VIEW intents as fallback (https://localhost/?text= already handled above, but also appUrlOpen)
+(function setupCapacitorShare(){
+  if(!window.Capacitor || !window.Capacitor.Plugins || !window.Capacitor.Plugins.App) return;
+  const App = window.Capacitor.Plugins.App;
+  App.getLaunchUrl && App.getLaunchUrl().then(res=>{
+    if(res && res.url){
+      const u = res.url;
+      if(u.includes('youtube') || u.includes('youtu.be') || u.includes('text=')){
+        const p = new URL(u).searchParams.get('text');
+        if(p) handleSharedText(decodeURIComponent(p));
+        else handleSharedText(u);
+      }
+    }
+  }).catch(()=>{});
+  App.addListener && App.addListener('appUrlOpen', (data)=>{
+    const u = data && data.url;
+    if(!u) return;
+    try{
+      const urlObj = new URL(u);
+      const t = urlObj.searchParams.get('text') || urlObj.searchParams.get('url') || u;
+      handleSharedText(decodeURIComponent(t));
+    }catch{
+      handleSharedText(u);
+    }
+  });
+  // also listen for custom event from MainActivity bridge.triggerWindowJSEvent
+  window.addEventListener('sharedText', (e)=>{
+    try{
+      const d = typeof e.detail === 'string' ? e.detail : (e.detail && e.detail.value) || '';
+      if(d) handleSharedText(d);
+    }catch{}
+  });
 })();
 
 // Auto paste on load if clipboard contains youtube link (mobile UX)
