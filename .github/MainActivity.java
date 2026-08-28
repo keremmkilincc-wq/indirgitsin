@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.webkit.JavascriptInterface;
 import android.webkit.URLUtil;
 import android.webkit.WebView;
 import android.widget.Toast;
@@ -24,6 +25,29 @@ public class MainActivity extends BridgeActivity {
     private void setupDownloadListener() {
         try {
             WebView webView = getBridge().getWebView();
+            // JS bridge: window.Android.download(url, filename) -> DownloadManager (CORS bypass)
+            webView.addJavascriptInterface(new Object() {
+                @JavascriptInterface
+                public void download(String url, String filename) {
+                    try {
+                        if (filename == null || filename.isEmpty()) filename = URLUtil.guessFileName(url, null, "video/mp4");
+                        filename = filename.replaceAll("[\\\\/:*?\"<>|]", "_");
+                        DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+                        DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
+                        String mime = filename.endsWith(".mp3") ? "audio/mpeg" : filename.endsWith(".m4a") ? "audio/mp4" : "video/mp4";
+                        req.setMimeType(mime);
+                        req.setDescription("İndir Gitsin ile indiriliyor...");
+                        req.setTitle(filename);
+                        req.allowScanningByMediaScanner();
+                        req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                        req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "IndirGitsin/" + filename);
+                        dm.enqueue(req);
+                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "İndirme başlatıldı: " + filename, Toast.LENGTH_LONG).show());
+                    } catch (Exception e) {
+                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "İndirme hatası: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                    }
+                }
+            }, "Android");
             webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
                 try {
                     String fileName = URLUtil.guessFileName(url, contentDisposition, mimetype);

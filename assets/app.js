@@ -70,12 +70,11 @@ function apiUrl(path){
 }
 function isNative(){ return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
 
-// Kaydet: Capacitor Filesystem ile public Download klasörüne dene (ExternalStorage -> External -> Documents)
+// Kaydet: native download - Filesystem.downloadFile (CORS'siz) + fallback base64
 async function saveToDownloads(filename, b64){
   const FS = window.Capacitor.Plugins.Filesystem;
   if(!FS) return {saved:false, error:'no FS'};
   const Dir = FS.Directory || {};
-  // denenecek klasörler sırayla: ExternalStorage ( /storage/emulated/0 ), External, Documents
   const tries = [
     Dir.ExternalStorage ? {dir: Dir.ExternalStorage, path:`Download/IndirGitsin/${filename}`} : null,
     Dir.External ? {dir: Dir.External, path:`Download/IndirGitsin/${filename}`} : null,
@@ -87,17 +86,43 @@ async function saveToDownloads(filename, b64){
   for(const t of tries){
     try{
       await FS.writeFile({ path: t.path, data: b64, directory: t.dir, recursive:true });
-      // doğrula
       try{ const st = await FS.stat({ path: t.path, directory: t.dir }); console.log('saved stat', st); }catch{}
       return {saved:true, path: t.path, dir: t.dir};
     }catch(e){ lastErr=e; console.log('save try fail', t, e.message||e); }
   }
-  // son çare: directory olmadan (cache)
   try{
     await FS.writeFile({ path: filename, data: b64 });
     return {saved:true, path: filename, dir:'CACHE'};
   }catch(e){ lastErr=e; }
   return {saved:false, error: lastErr};
+}
+
+// En güvenilir: Filesystem.downloadFile ile doğrudan URL'den public Download'a çek (CORS bypass)
+async function downloadViaNative(url, filename){
+  const FS = window.Capacitor.Plugins.Filesystem;
+  if(!FS || !FS.downloadFile) return {ok:false, error:'no downloadFile'};
+  const Dir = FS.Directory || {};
+  const tries = [
+    Dir.ExternalStorage ? {dir: Dir.ExternalStorage, path:`Download/IndirGitsin/${filename}`} : null,
+    Dir.External ? {dir: Dir.External, path:`Download/IndirGitsin/${filename}`} : null,
+    Dir.Documents ? {dir: Dir.Documents, path:`Download/IndirGitsin/${filename}`} : null,
+  ].filter(Boolean);
+  let lastErr=null;
+  for(const t of tries){
+    try{
+      const res = await FS.downloadFile({ url, path: t.path, directory: t.dir, recursive:true });
+      console.log('downloadFile ok', res);
+      return {ok:true, path: t.path, dir: t.dir, res};
+    }catch(e){ lastErr=e; console.log('downloadFile fail', t, e.message||e); }
+  }
+  // Android JS bridge fallback: window.Android.download()
+  try{
+    if(window.Android && window.Android.download){
+      window.Android.download(url, filename);
+      return {ok:true, path: filename, dir:'AndroidBridge'};
+    }
+  }catch(e){ lastErr=e; }
+  return {ok:false, error: lastErr};
 }
 
 // Mock data for offline preview (when server not running)
@@ -402,11 +427,27 @@ async function startDownload(info, format, btn){
     // 1) Doğrudan CDN - sunucusuz, cihaz doğrudan indirir (öncelikli)
     if(format.url && format.url.startsWith('http')){
       let filename = `${(info.title||'video').replace(/[^\w\- ]/g,'').slice(0,60)}.${format.ext}`;
-      // Native: önce Filesystem ile gerçek indirme dene (DownloadManager + Filesystem), fallback Browser
+      // Native: önce native downloadFile (CORS bypass, en güvenilir), sonra fallback
       if(native){
         try{
           progressText.textContent='İndiriliyor (doğrudan)...';
-          // Yöntem A: Fetch blob -> Filesystem (en güvenilir, Downloads'a yazar)
+          // Yöntem 0: Filesystem.downloadFile -> doğrudan public Download (en iyi, CORS yok)
+          try{
+            const dl = await downloadViaNative(format.url, filename);
+            if(dl.ok){
+              clearInterval(iv);
+              progressFill.style.width='100%'; progressText.textContent='100%';
+              await new Promise(r=>setTimeout(r,400));
+              progressModal.classList.add('hidden');
+              const loc = dl.dir==='AndroidBridge' ? 'İndirilenler/IndirGitsin' : `İndirilenler/IndirGitsin/${filename}`;
+              showStatus(`İndirildi ✓ ${loc} (bildirim çubuğunu kontrol et)`, 'success');
+              addToHistory(info, format);
+              return;
+            } else {
+              console.log('downloadViaNative failed, fallback fetch', dl.error);
+            }
+          }catch(e){ console.log('downloadViaNative error', e); }
+          // Yöntem A: Fetch blob -> Filesystem base64 (fallback)
           try{
             const resp = await fetch(format.url);
             if(resp.ok){
@@ -421,13 +462,11 @@ async function startDownload(info, format, btn){
                 progressModal.classList.add('hidden');
                 const loc = res.dir==='CACHE' ? 'uygulama önbelleği' : `İndirilenler/IndirGitsin/${filename}`;
                 showStatus(`İndirildi ✓ Kaydedildi: ${loc}`, 'success');
-                // Galeri/Download görünmesi için tarayıcıya da tetikle
                 try{ const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); }catch{}
                 addToHistory(info, format);
                 return;
               } else {
                 console.log('saveToDownloads failed', res.error);
-                // Filesystem olmadı -> DownloadManager anchor dene (aşağıya düş)
               }
             }
           }catch(e){ console.log('direct fetch->FS failed', e); }
