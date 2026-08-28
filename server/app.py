@@ -100,20 +100,21 @@ def info(url: str = Query(..., description="YouTube URL")):
             formats = []
             seen = set()
             fmts = data.get("formats") or []
-            # Video with audio (direct combined)
+            # Video with audio (direct combined) - include direct CDN url for direct download (A)
             for f in fmts:
                 ext = f.get("ext")
                 h = f.get("height")
                 acodec = f.get("acodec")
                 vcodec = f.get("vcodec")
                 fid = f.get("format_id")
+                durl = f.get("url")
                 if vcodec != "none" and acodec != "none" and h and ext in ("mp4","webm"):
                     key = f"{h}_{ext}"
                     if key in seen: continue
                     seen.add(key)
                     size = f.get("filesize") or f.get("filesize_approx")
                     size_str = f"~{round(size/1024/1024)} MB" if size else ""
-                    formats.append({"id":str(fid),"label":f"MP4 {h}p" if ext=="mp4" else f"{ext.upper()} {h}p","ext":ext,"quality":f"{h}p","type":"video","size":size_str,"hasAudio":True,"fps":f.get("fps")})
+                    formats.append({"id":str(fid),"label":f"MP4 {h}p" if ext=="mp4" else f"{ext.upper()} {h}p","ext":ext,"quality":f"{h}p","type":"video","size":size_str,"hasAudio":True,"fps":f.get("fps"),"url":durl})
             # sort video descending
             formats.sort(key=lambda x: int(x["quality"].replace("p","").replace("kbps","")) if "p" in x["quality"] else 0, reverse=True)
 
@@ -131,22 +132,22 @@ def info(url: str = Query(..., description="YouTube URL")):
             existing_qualities = {x["quality"] for x in formats}
             for pid, label, qual, h in preset_defs:
                 if h <= max_h + 180 and qual not in existing_qualities:  # allow one above max for fallback
-                    formats.append({"id": pid, "label": f"{label} (MP4)", "ext": "mp4", "quality": qual, "type": "video", "size": "", "hasAudio": True})
+                    formats.append({"id": pid, "label": f"{label} (MP4)", "ext": "mp4", "quality": qual, "type": "video", "size": "", "hasAudio": True, "url": ""})
 
-            # Audio only
+            # Audio only - include direct url
             audio_added=False
             for f in reversed(fmts):
                 if f.get("vcodec")=="none" and f.get("acodec")!="none":
-                    ext=f.get("ext"); fid=f.get("format_id"); abr=f.get("abr")
+                    ext=f.get("ext"); fid=f.get("format_id"); abr=f.get("abr"); durl=f.get("url")
                     label = f"{ext.upper()} {int(abr)}kbps" if abr else ext.upper()
                     if not audio_added:
-                        formats.append({"id":"m4a","label":"M4A (Ses)","ext":"m4a","quality":f"{int(abr)}kbps" if abr else "128kbps","type":"audio","size":""})
+                        formats.append({"id":"m4a","label":"M4A (Ses)","ext":"m4a","quality":f"{int(abr)}kbps" if abr else "128kbps","type":"audio","size":"","url":durl})
                         audio_added=True
                         break
             if not audio_added:
-                formats.append({"id":"m4a","label":"M4A (Ses)","ext":"m4a","quality":"128kbps","type":"audio","size":""})
-            # Always add mp3 convert option
-            formats.append({"id":"mp3","label":"MP3 320kbps","ext":"mp3","quality":"320kbps","type":"audio","size":""})
+                formats.append({"id":"m4a","label":"M4A (Ses)","ext":"m4a","quality":"128kbps","type":"audio","size":"","url":""})
+            # Always add mp3 convert option (needs ffmpeg, no direct url)
+            formats.append({"id":"mp3","label":"MP3 320kbps","ext":"mp3","quality":"320kbps","type":"audio","size":"","url":""})
             # Deduplicate by id and keep order video first
             uniq = {}
             for f in formats:

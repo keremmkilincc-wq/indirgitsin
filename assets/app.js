@@ -82,12 +82,12 @@ function mockInfo(url){
     thumbnail: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
     url,
     formats: [
-      {id:'mp4_1080', label:'MP4 1080p (MP4)', ext:'mp4', quality:'1080p', type:'video', size:'', hasAudio:true},
-      {id:'mp4_720', label:'MP4 720p (MP4)', ext:'mp4', quality:'720p', type:'video', size:'~45 MB', hasAudio:true, fps:30},
-      {id:'mp4_480', label:'MP4 480p (MP4)', ext:'mp4', quality:'480p', type:'video', size:'~28 MB', hasAudio:true},
-      {id:'mp4_360', label:'MP4 360p (MP4)', ext:'mp4', quality:'360p', type:'video', size:'~18 MB', hasAudio:true, fps:30},
-      {id:'m4a', label:'M4A (Ses)', ext:'m4a', quality:'128kbps', type:'audio', size:'~3.5 MB'},
-      {id:'mp3', label:'MP3 320kbps', ext:'mp3', quality:'320kbps', type:'audio', size:'~5 MB'},
+      {id:'mp4_1080', label:'MP4 1080p (MP4)', ext:'mp4', quality:'1080p', type:'video', size:'', hasAudio:true, url:''},
+      {id:'mp4_720', label:'MP4 720p (MP4)', ext:'mp4', quality:'720p', type:'video', size:'~45 MB', hasAudio:true, fps:30, url:''},
+      {id:'mp4_480', label:'MP4 480p (MP4)', ext:'mp4', quality:'480p', type:'video', size:'~28 MB', hasAudio:true, url:''},
+      {id:'mp4_360', label:'MP4 360p (MP4)', ext:'mp4', quality:'360p', type:'video', size:'~18 MB', hasAudio:true, fps:30, url:''},
+      {id:'m4a', label:'M4A (Ses)', ext:'m4a', quality:'128kbps', type:'audio', size:'~3.5 MB', url:''},
+      {id:'mp3', label:'MP3 320kbps', ext:'mp3', quality:'320kbps', type:'audio', size:'~5 MB', url:''},
     ]
   };
 }
@@ -155,6 +155,29 @@ async function startDownload(info, format, btn){
   }, 500);
 
   try{
+    const native = isNative();
+    // 1) Doğrudan CDN (A) - format.url varsa proxy'ye gerek yok, mobilde PC'siz çalışır
+    if(format.url && format.url.startsWith('http')){
+      clearInterval(iv);
+      progressFill.style.width='100%'; progressText.textContent='100%';
+      await new Promise(r=>setTimeout(r,300));
+      progressModal.classList.add('hidden');
+      let filename = `${(info.title||'video').replace(/[^\w\- ]/g,'').slice(0,60)}.${format.ext}`;
+      try{
+        if(native && window.Capacitor.Plugins.Browser){
+          await window.Capacitor.Plugins.Browser.open({ url: format.url });
+          showStatus('Doğrudan indirme tarayıcıda açıldı (CDN).', 'success');
+        } else {
+          const a=document.createElement('a'); a.href=format.url; a.download=filename; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove();
+          showStatus('Doğrudan indirme başlatıldı (CDN).', 'success');
+        }
+      }catch{
+        window.open(format.url, '_blank');
+        showStatus('Doğrudan indirme başlatıldı.', 'success');
+      }
+      addToHistory(info, format);
+      return;
+    }
     const dlUrl = apiUrl(`/api/download?url=${encodeURIComponent(info.url)}&format_id=${encodeURIComponent(format.id)}&ext=${format.ext}`);
     let serverAvailable=false;
     let healthData=null;
@@ -163,8 +186,6 @@ async function startDownload(info, format, btn){
     if(serverAvailable){
       // fetch as blob to handle errors (ffmpeg/yt-dlp) properly
       progressText.textContent='Sunucuya bağlanıyor...';
-      // For native APK: use Filesystem if available, otherwise Browser
-      const native = isNative();
       const resp = await fetch(dlUrl);
       if(!resp.ok){
         let msg='';
