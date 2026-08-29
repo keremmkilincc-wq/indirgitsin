@@ -30,21 +30,24 @@ public class MainActivity extends BridgeActivity {
                 @JavascriptInterface
                 public void download(String url, String filename) {
                     try {
-                        if (filename == null || filename.isEmpty()) filename = URLUtil.guessFileName(url, null, "video/mp4");
-                        filename = filename.replaceAll("[\\\\/:*?\"<>|]", "_");
+                        String safeFilename = filename;
+                        if (safeFilename == null || safeFilename.isEmpty()) safeFilename = URLUtil.guessFileName(url, null, "video/mp4");
+                        safeFilename = safeFilename.replaceAll("[\\\\/:*?\"<>|]", "_");
+                        final String finalFilename = safeFilename;
                         DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
                         DownloadManager.Request req = new DownloadManager.Request(Uri.parse(url));
-                        String mime = filename.endsWith(".mp3") ? "audio/mpeg" : filename.endsWith(".m4a") ? "audio/mp4" : "video/mp4";
+                        String mime = finalFilename.endsWith(".mp3") ? "audio/mpeg" : finalFilename.endsWith(".m4a") ? "audio/mp4" : "video/mp4";
                         req.setMimeType(mime);
                         req.setDescription("İndir Gitsin ile indiriliyor...");
-                        req.setTitle(filename);
+                        req.setTitle(finalFilename);
                         req.allowScanningByMediaScanner();
                         req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                        req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "IndirGitsin/" + filename);
+                        req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "IndirGitsin/" + finalFilename);
                         dm.enqueue(req);
-                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "İndirme başlatıldı: " + filename, Toast.LENGTH_LONG).show());
+                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "İndirme başlatıldı: " + finalFilename, Toast.LENGTH_LONG).show());
                     } catch (Exception e) {
-                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "İndirme hatası: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                        final String errMsg = e.getMessage();
+                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "İndirme hatası: " + errMsg, Toast.LENGTH_LONG).show());
                     }
                 }
             }, "Android");
