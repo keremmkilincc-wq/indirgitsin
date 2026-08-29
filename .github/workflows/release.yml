@@ -68,6 +68,22 @@ jobs:
           fi
           grep -q "android.intent.action.SEND" "$TARGET" && echo "SEND intent OK" || echo "SEND intent MISSING"
           cat "$TARGET" || true
+          # Ensure FileProvider file_paths.xml exists (required by AndroidManifest)
+          mkdir -p android/app/src/main/res/xml
+          if [ ! -f "android/app/src/main/res/xml/file_paths.xml" ]; then
+            cat > android/app/src/main/res/xml/file_paths.xml << 'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <paths>
+              <external-path name="external_files" path="." />
+              <external-files-path name="external_files" path="." />
+              <external-cache-path name="external_cache" path="." />
+              <cache-path name="cache" path="." />
+              <files-path name="files" path="." />
+          </paths>
+          XML
+            echo "Created file_paths.xml"
+          fi
+          cat android/app/src/main/res/xml/file_paths.xml || true
           # Patch MainActivity to handle SEND -> load https://localhost/?text=
           JAVA_TMPL=".github/MainActivity.java"
           JAVA_TARGET="android/app/src/main/java/com/indirgitsin/app/MainActivity.java"
