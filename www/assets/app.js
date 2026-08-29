@@ -838,27 +838,62 @@ async function startDownload(info, format, btn){
   }
 }
 
-// History
+// History - Derli toplu, responsive grid + silme
 function loadHistory(){
   try{ return JSON.parse(localStorage.getItem('indir_gitsin_history')||'[]'); }catch{return []}
 }
 function saveHistory(h){ localStorage.setItem('indir_gitsin_history', JSON.stringify(h)); }
+function formatHistoryDate(iso){
+  try{
+    const d=new Date(iso);
+    const now=new Date();
+    const diff=(now-d)/1000;
+    if(diff<60) return 'az önce';
+    if(diff<3600) return Math.floor(diff/60)+' dk önce';
+    if(diff<86400) return Math.floor(diff/3600)+' saat önce';
+    if(diff<172800) return 'dün';
+    return d.toLocaleDateString('tr-TR', {day:'2-digit', month:'short'});
+  }catch{return ''}
+}
 function renderHistory(){
   const h=loadHistory();
-  if(h.length===0){ historyList.innerHTML='<p class="empty">Henüz indirme yok. İlk linkini yapıştır!</p>'; return; }
+  const countEl=$('#historyCount');
+  if(countEl){
+    if(h.length>0){ countEl.textContent=h.length; countEl.classList.remove('hidden'); } else { countEl.classList.add('hidden'); }
+  }
+  if(h.length===0){
+    historyList.innerHTML=`<div class="history-empty"><div class="history-empty-icon">📭</div><b style="font-size:13px">Henüz indirme yok</b><p>İlk YouTube linkini yapıştır ve indir gitsin!</p></div>`;
+    return;
+  }
   historyList.innerHTML='';
-  h.slice(0,12).forEach(item=>{
+  h.slice(0,18).forEach((item, idx)=>{
     const div=document.createElement('div'); div.className='history-item';
-    div.innerHTML=`<img src="${item.thumb}" alt=""><div><b>${item.title}</b><span>${item.format} • ${new Date(item.date).toLocaleDateString('tr-TR')}</span></div>`;
-    div.style.cursor='pointer';
+    const isAudio = (item.format||'').toLowerCase().includes('mp3') || (item.format||'').toLowerCase().includes('m4a') || (item.format||'').toLowerCase().includes('ses');
+    const isVideo = (item.format||'').toLowerCase().includes('mp4') || (item.format||'').toLowerCase().includes('video');
+    const badgeClass = isAudio ? 'audio' : isVideo ? 'video' : '';
+    const badgeText = item.format || 'Görüntülendi';
+    const timeText = formatHistoryDate(item.date);
+    div.innerHTML=`<img src="${item.thumb}" alt="" loading="lazy"><div class="history-item-main"><b title="${(item.title||'').replace(/"/g,'&quot;')}">${item.title||'Bilinmeyen Başlık'}</b><div class="history-item-meta"><span class="history-badge ${badgeClass}">${badgeText}</span><span class="history-time">${timeText}</span></div></div><button class="history-delete" title="Sil">✕</button>`;
     div.addEventListener('click',()=>{ urlInput.value=item.url; handleAnalyze(); window.scrollTo({top:0,behavior:'smooth'}); });
+    const delBtn=div.querySelector('.history-delete');
+    if(delBtn) delBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const nh=loadHistory();
+      nh.splice(idx,1);
+      saveHistory(nh);
+      renderHistory();
+      showStatus('Geçmişten silindi', 'info');
+    });
     historyList.appendChild(div);
   });
 }
 function addToHistory(info, format){
   const h=loadHistory();
+  // aynı url+format varsa başa taşı, duplicate engelle
+  const existingIdx=h.findIndex(x=> x.url===info.url && x.format===format.label);
+  if(existingIdx!==-1) h.splice(existingIdx,1);
   h.unshift({title:info.title, thumb:info.thumbnail, url:info.url, format:format.label, date:new Date().toISOString()});
-  saveHistory(h.slice(0,20));
+  saveHistory(h.slice(0,30));
   renderHistory();
 }
 
@@ -922,6 +957,13 @@ $('#cancelDl').addEventListener('click', ()=> progressModal.classList.add('hidde
   aboutClose?.addEventListener('click', closeAbout);
   aboutModal?.addEventListener('click', (e)=>{ if(e.target===aboutModal) closeAbout(); });
   document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeAbout(); });
+  // Hakkında içindeki güncelle butonu
+  $('#aboutUpdateCheck')?.addEventListener('click', async()=>{
+    const b=$('#aboutUpdateCheck');
+    if(b){ b.textContent='⏳ Denetleniyor...'; b.disabled=true; }
+    await checkForUpdate(true);
+    setTimeout(()=>{ if(b){ b.textContent='🔄 Güncellemeyi Denetle'; b.disabled=false; } }, 1200);
+  });
 })();
 // Theme toggle - persisted + CSS variables
 const THEME_KEY='indir_gitsin_theme';
@@ -1097,7 +1139,7 @@ window.handleSharedText = handleSharedText;
 })();
 
 // --- Otomatik Güncelleme (GitHub Releases) ---
-const APP_VERSION = '1.1.2';
+const APP_VERSION = '1.2.0';
 const GITHUB_REPO = 'keremmkilincc-wq/indirgitsin';
 const UPDATE_CHECK_KEY = 'indir_gitsin_update_dismiss';
 const UPDATE_LAST_CHECK = 'indir_gitsin_last_check';
