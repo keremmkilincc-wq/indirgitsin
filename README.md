@@ -10,7 +10,7 @@
 
 <br/>
 
-[![Version](https://img.shields.io/badge/version-v1.4.0-FF0033?style=for-the-badge&labelColor=0a0a0f)](https://github.com/keremmkilincc-wq/indirgitsin/releases)
+[![Version](https://img.shields.io/badge/version-v1.5.0-FF0033?style=for-the-badge&labelColor=0a0a0f)](https://github.com/keremmkilincc-wq/indirgitsin/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/keremmkilincc-wq/indirgitsin/release.yml?branch=main&label=build&style=for-the-badge&labelColor=0a0a0f&color=7c3aed)](https://github.com/keremmkilincc-wq/indirgitsin/actions)
 [![Downloads](https://img.shields.io/github/downloads/keremmkilincc-wq/indirgitsin/total?style=for-the-badge&labelColor=0a0a0f&color=06b6d4)](https://github.com/keremmkilincc-wq/indirgitsin/releases)
 [![License](https://img.shields.io/badge/license-MIT-10b981?style=for-the-badge&labelColor=0a0a0f)](LICENSE)
@@ -58,7 +58,7 @@ flowchart LR
 | İndir Sekmesi | Geçmiş | Hakkında |
 |---|---|---|
 | Link yapıştır, kalite seç, indir | Grid, badge, oynat & sil | Glass hero, özellikler, güncelle |
-| *Hero + Preview + Seçenekler* | *18 son işlem, zaman etiketi* | *v1.4.0, stats, repo linkleri* |
+| *Hero + Preview + Seçenekler* | *18 son işlem, zaman etiketi* | *v1.5.0, stats, repo linkleri* |
 
 > **İpucu:** `assets/icon.svg` ve `manifest.json` ile tam PWA — ana ekrana ekle, uygulama gibi kullan.
 
@@ -151,8 +151,8 @@ npx cap open android
 ### Otomatik (GitHub Actions)
 
 ```bash
-git tag v1.4.0
-git push origin v1.4.0
+git tag v1.5.0
+git push origin v1.5.0
 # veya
 git push origin main
 ```
@@ -170,7 +170,7 @@ kozauygulama/
 ├─ index.html                 # Tabbed UI: indir / geçmiş / hakkında
 ├─ manifest.json              # PWA + share_target + shortcuts
 ├─ capacitor.config.json      # appId: com.indirgitsin.app, webDir: www
-├─ package.json               # v1.4.0
+├─ package.json               # v1.5.0
 ├─ assets/
 │  ├─ app.js                  # 1300+ satır: fetchInfo (Piped→Innertube), nativeFetch, downloadViaNative, ffmpeg dual, history, player, update
 │  ├─ style.css               # Glassmorphism, responsive, tab, history grid, about hero
