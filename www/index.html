@@ -33,12 +33,25 @@
     </div>
   </div>
   <div class="header-actions">
+    <button class="icon-btn hidden" id="updateCheckBtn" title="Güncelleme denetle">🔄</button>
     <button class="icon-btn" id="settingsBtn" title="Sunucu ayarı">⚙️</button>
     <button class="icon-btn" id="themeToggle" title="Tema değiştir">🌙</button>
     <a href="https://github.com/keremmkilincc-wq/indirgitsin" target="_blank" class="icon-btn" title="GitHub Repo">⬢</a>
     <a href="https://github.com/keremmkilincc-wq" target="_blank" class="icon-btn" title="Geliştirici Profili" style="font-size:10px;font-weight:800">KER</a>
   </div>
 </header>
+
+<!-- Otomatik Güncelleme Banner -->
+<div id="updateBanner" class="update-banner glass hidden" style="max-width:980px;margin:0 auto 12px;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+  <span style="font-size:20px">🚀</span>
+  <div style="flex:1;min-width:160px">
+    <b id="updateTitle" style="font-size:13px;display:block">Yeni sürüm mevcut!</b>
+    <span id="updateText" style="font-size:11px;color:var(--muted)">Daha hızlı indirme ve hata düzeltmeleri için güncelle</span>
+  </div>
+  <a id="updateBtn" href="#" target="_blank" class="download-btn" style="padding:8px 14px;font-size:12px;text-decoration:none">Güncelle</a>
+  <button id="updateDismiss" class="ghost-btn small" title="Kapat">✕</button>
+  <button id="updateLater" class="ghost-btn small">Sonra</button>
+</div>
 
 <main class="container">
   <!-- Hero Card -->

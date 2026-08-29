@@ -1049,6 +1049,124 @@ window.handleSharedText = handleSharedText;
   });
 })();
 
+// --- Otomatik Güncelleme (GitHub Releases) ---
+const APP_VERSION = '1.0.0';
+const GITHUB_REPO = 'keremmkilincc-wq/indirgitsin';
+const UPDATE_CHECK_KEY = 'indir_gitsin_update_dismiss';
+const UPDATE_LAST_CHECK = 'indir_gitsin_last_check';
+function parseVersion(v){ return String(v||'').replace(/^v/,'').split('.').map(n=>parseInt(n,10)||0); }
+function compareVersions(a,b){
+  const pa=parseVersion(a), pb=parseVersion(b);
+  for(let i=0;i<Math.max(pa.length,pb.length);i++){
+    const da=pa[i]||0, db=pb[i]||0;
+    if(da>db) return 1;
+    if(da<db) return -1;
+  }
+  return 0;
+}
+function getApkUrl(release){
+  if(!release) return `https://github.com/${GITHUB_REPO}/releases/latest`;
+  const apk = (release.assets||[]).find(a=> a.name && a.name.endsWith('.apk')) || (release.assets||[])[0];
+  return apk ? apk.browser_download_url : release.html_url || `https://github.com/${GITHUB_REPO}/releases/latest`;
+}
+async function fetchLatestRelease(){
+  // 2 kaynak: API + redirect fallback
+  try{
+    const r = await fetchWithTimeout(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {}, 6000);
+    if(r.ok){ const j=await r.json(); if(j.tag_name) return j; }
+  }catch(e){ console.log('update API fail', e); }
+  // fallback: try raw tag via releases/latest redirect (fetch html_url)
+  try{
+    const r2 = await fetchWithTimeout(`https://github.com/${GITHUB_REPO}/releases/latest`, {headers:{'Accept':'application/json'}}, 6000);
+    // GitHub redirects to /releases/tag/vX - we can't easily parse, return null
+  }catch{}
+  return null;
+}
+function showUpdateBanner(release){
+  const banner=$('#updateBanner');
+  const title=$('#updateTitle');
+  const text=$('#updateText');
+  const btn=$('#updateBtn');
+  const dismiss=$('#updateDismiss');
+  const later=$('#updateLater');
+  if(!banner || !release) return;
+  const tag = release.tag_name || release.name || '';
+  const ver = tag.replace(/^v/,'');
+  if(title) title.textContent = `Yeni sürüm: v${ver} (mevcut v${APP_VERSION})`;
+  if(text) text.textContent = (release.body||'Hata düzeltmeleri ve iyileştirmeler').slice(0,120) + (release.body && release.body.length>120 ? '…' : '');
+  const apkUrl = getApkUrl(release);
+  if(btn){
+    btn.href = apkUrl;
+    btn.textContent = apkUrl.endsWith('.apk') ? 'APK İndir' : 'Güncelle';
+    btn.onclick = (e)=>{
+      // Native ise Browser ile aç
+      try{
+        if(isNative() && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser){
+          e.preventDefault();
+          window.Capacitor.Plugins.Browser.open({url: apkUrl});
+        } else if(isNative() && window.Android && window.Android.download){
+          e.preventDefault();
+          const fn = `IndirGitsin-v${ver}.apk`;
+          window.Android.download(apkUrl, fn);
+          showStatus('Güncelleme indiriliyor... İndirilenler/IndirGitsin kontrol et', 'success');
+        }
+      }catch{}
+    };
+  }
+  banner.classList.remove('hidden');
+  const checkBtn=$('#updateCheckBtn');
+  if(checkBtn) checkBtn.classList.remove('hidden');
+  // Dismiss
+  const hide = ()=>{ banner.classList.add('hidden'); };
+  if(dismiss) dismiss.onclick = ()=>{ localStorage.setItem(UPDATE_CHECK_KEY, tag); hide(); };
+  if(later) later.onclick = ()=>{ hide(); };
+}
+async function checkForUpdate(force=false){
+  const last = parseInt(localStorage.getItem(UPDATE_LAST_CHECK)||'0',10);
+  const now = Date.now();
+  const dismissed = localStorage.getItem(UPDATE_CHECK_KEY)||'';
+  if(!force && now - last < 4*60*60*1000) return; // 4 saatte bir
+  localStorage.setItem(UPDATE_LAST_CHECK, String(now));
+  try{
+    const rel = await fetchLatestRelease();
+    if(!rel || !rel.tag_name) {
+      console.log('no release found');
+      return;
+    }
+    const latest = rel.tag_name.replace(/^v/,'');
+    if(dismissed && dismissed===rel.tag_name) return; // kullanıcı kapattı
+    if(compareVersions(latest, APP_VERSION) > 0){
+      showUpdateBanner(rel);
+      console.log('update available', latest, '>', APP_VERSION);
+    } else {
+      console.log('app up-to-date', APP_VERSION);
+      if(force) showStatus(`Uygulama güncel (v${APP_VERSION})`, 'success');
+    }
+  }catch(e){ console.log('update check error', e); }
+}
+// Otomatik tetikle
+setTimeout(()=> checkForUpdate(false), 2500);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') checkForUpdate(false); });
+window.addEventListener('focus', ()=> checkForUpdate(false));
+(function setupUpdateBtn(){
+  const b=$('#updateCheckBtn');
+  if(!b) return;
+  b.addEventListener('click', async()=>{
+    b.textContent='⏳';
+    await checkForUpdate(true);
+    setTimeout(()=> b.textContent='🔄', 1500);
+    // eğer banner hala hidden ise güncel mesajı zaten checkForUpdate gösterdi
+    const banner=$('#updateBanner');
+    if(banner && banner.classList.contains('hidden')){
+      // force didn't find update -> banner hidden, kullanıcıya bilgi zaten verildi
+    }
+  });
+  // Hakkında modal içine de versiyon göster
+  const aboutVer = document.querySelector('#aboutModal p');
+  // extra: periyodik 6 saat
+  setInterval(()=> checkForUpdate(false), 6*60*60*1000);
+})();
+
 // Auto paste on load if clipboard contains youtube link (mobile UX)
 window.addEventListener('focus', async()=>{
   if(urlInput.value) return;
