@@ -509,11 +509,13 @@ async function startDownload(info, format, btn){
               console.log('downloadViaNative failed, fallback fetch', dl.error);
             }
           }catch(e){ console.log('downloadViaNative error', e); }
-          // Yöntem A: Fetch blob -> Filesystem base64 (fallback)
+          // Yöntem A: Fetch blob -> Filesystem base64 (fallback) - M4A için de CORS bypass
           try{
-            const resp = await fetch(format.url);
+            let resp;
+            try{ resp = await nativeFetch(format.url); }catch{ resp = await fetch(format.url); }
             if(resp.ok){
-              const blob = await resp.blob();
+              let blob;
+              try{ blob = await resp.blob(); }catch{ const ab = await resp.arrayBuffer(); blob = new Blob([ab], {type: format.ext==='m4a'?'audio/mp4':'video/mp4'}); }
               const toBase64 = (b)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=> res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(b); });
               const b64 = await toBase64(blob);
               const res = await saveToDownloads(filename, b64);
@@ -603,41 +605,86 @@ async function startDownload(info, format, btn){
         try{
           progressText.textContent='Ses indiriliyor...';
           progressFill.style.width='30%';
-          const resp = await fetch(audioSrc.url);
-          if(!resp.ok) throw new Error('Ses indirilemedi HTTP '+resp.status);
-          const audioBlob = await resp.blob();
+          // CORS bypass için nativeFetch kullan (APK'da googlevideo CORS yok)
+          let audioBlob;
+          try{
+            let resp;
+            try{ resp = await nativeFetch(audioSrc.url); }catch{ resp = await fetch(audioSrc.url); }
+            if(!resp.ok) throw new Error('HTTP '+resp.status);
+            // nativeFetch blob() bazen base64 string dönebilir, handle et
+            try{ audioBlob = await resp.blob(); }catch{ const ab = await resp.arrayBuffer(); audioBlob = new Blob([ab]); }
+            // blob boşsa ve native ise DownloadManager ile dene -> fallback base64
+            if(!audioBlob || audioBlob.size===0) throw new Error('Boş ses verisi');
+          }catch(fetchErr){
+            console.log('audio fetch fail, trying direct download fallback', fetchErr);
+            // Son çare: M4A url ile doğrudan indirmeyi dene (M4A olarak)
+            // Kullanıcıya M4A öner
+            throw new Error('Ses indirilemedi (CORS/URL süresi dolmuş). M4A butonunu dene: ' + (fetchErr.message||fetchErr));
+          }
           progressFill.style.width='45%';
           progressText.textContent='MP3’e dönüştürülüyor (cihazda)...';
-          // FFmpeg.wasm ile dönüştür
+          // FFmpeg.wasm ile dönüştür - hem 0.11 (createFFmpeg) hem 0.12 (FFmpeg class) destekle
           let mp3Blob;
+          let ffmpegOk=false;
           try{
-            if(!window.FFmpeg || !window.FFmpeg.createFFmpeg) throw new Error('FFmpeg script yok');
-            // singleton
-            if(!window._ffmpegInstance){
-              const { createFFmpeg } = window.FFmpeg;
-              const ffmpeg = createFFmpeg({ log:false, corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js' });
-              ffmpeg.setProgress(({ratio})=>{
-                const p = 45 + Math.round(ratio*45);
-                progressFill.style.width=p+'%';
-                progressText.textContent=`Dönüştürülüyor ${Math.round(ratio*100)}%`;
-              });
-              window._ffmpegLoading = ffmpeg.load();
-              window._ffmpegInstance = ffmpeg;
+            // 0.12 API: window.FFmpeg.FFmpeg veya window.FFmpegWASM.FFmpeg
+            const FFmpegNS = window.FFmpeg || window.FFmpegWASM || {};
+            if(FFmpegNS.createFFmpeg){
+              // 0.11 stili
+              if(!window._ffmpegInstance){
+                const { createFFmpeg, fetchFile } = FFmpegNS;
+                const ffmpeg = createFFmpeg({ log:false, corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js' });
+                ffmpeg.setProgress(({ratio})=>{
+                  const p = 45 + Math.round(ratio*45);
+                  progressFill.style.width=p+'%';
+                  progressText.textContent=`Dönüştürülüyor ${Math.round(ratio*100)}%`;
+                });
+                window._ffmpegLoading = ffmpeg.load();
+                window._ffmpegInstance = ffmpeg;
+                window._ffmpegFetchFile = fetchFile;
+              }
+              if(window._ffmpegLoading) await window._ffmpegLoading;
+              const ffmpeg = window._ffmpegInstance;
+              const fetchFile = window._ffmpegFetchFile || FFmpegNS.fetchFile;
+              const inputName = 'input.' + (audioSrc.ext||'m4a');
+              ffmpeg.FS('writeFile', inputName, await fetchFile(audioBlob));
+              await ffmpeg.run('-i', inputName, '-codec:a', 'libmp3lame', '-qscale:a', '2', 'output.mp3');
+              const data = ffmpeg.FS('readFile', 'output.mp3');
+              mp3Blob = new Blob([data.buffer], {type:'audio/mpeg'});
+              try{ ffmpeg.FS('unlink', inputName); ffmpeg.FS('unlink', 'output.mp3'); }catch{}
+              ffmpegOk=true;
+            } else if(FFmpegNS.FFmpeg){
+              // 0.12 stili
+              if(!window._ffmpeg12){
+                const { FFmpeg } = FFmpegNS;
+                const ffmpeg = new FFmpeg();
+                ffmpeg.on('progress', ({progress})=>{
+                  const p = 45 + Math.round(progress*45);
+                  progressFill.style.width=p+'%';
+                  progressText.textContent=`Dönüştürülüyor ${Math.round(progress*100)}%`;
+                });
+                window._ffmpeg12 = ffmpeg;
+                window._ffmpeg12Loading = ffmpeg.load({coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js'});
+              }
+              await window._ffmpeg12Loading;
+              const ffmpeg = window._ffmpeg12;
+              const { fetchFile } = FFmpegNS;
+              await ffmpeg.writeFile('input.'+(audioSrc.ext||'m4a'), await fetchFile(audioBlob));
+              await ffmpeg.exec(['-i','input.'+(audioSrc.ext||'m4a'),'-codec:a','libmp3lame','-qscale:a','2','output.mp3']);
+              const data = await ffmpeg.readFile('output.mp3');
+              mp3Blob = new Blob([data], {type:'audio/mpeg'});
+              try{ await ffmpeg.deleteFile('input.'+(audioSrc.ext||'m4a')); await ffmpeg.deleteFile('output.mp3'); }catch{}
+              ffmpegOk=true;
+            } else {
+              throw new Error('FFmpeg script yok');
             }
-            if(window._ffmpegLoading) await window._ffmpegLoading;
-            const ffmpeg = window._ffmpegInstance;
-            const fetchFile = window.FFmpeg.fetchFile || ffmpeg.fetchFile;
-            const inputName = 'input.' + (audioSrc.ext||'m4a');
-            ffmpeg.FS('writeFile', inputName, await fetchFile(audioBlob));
-            await ffmpeg.run('-i', inputName, '-codec:a', 'libmp3lame', '-qscale:a', '2', 'output.mp3');
-            const data = ffmpeg.FS('readFile', 'output.mp3');
-            mp3Blob = new Blob([data.buffer], {type:'audio/mpeg'});
-            try{ ffmpeg.FS('unlink', inputName); ffmpeg.FS('unlink', 'output.mp3'); }catch{}
           }catch(ffErr){
             console.log('ffmpeg fail, fallback m4a->mp3 rename', ffErr);
             // Fallback: m4a'yı mp3 gibi kaydet (oynatıcılar çalar, gerçek dönüştürme değil)
-            mp3Blob = audioBlob;
-            showStatus('FFmpeg yüklenemedi, ses M4A olarak MP3 adıyla kaydediliyor (uyumlu).', 'info');
+            if(!ffmpegOk) {
+              mp3Blob = audioBlob;
+              showStatus('FFmpeg yüklenemedi, ses M4A olarak MP3 adıyla kaydediliyor (uyumlu).', 'info');
+            }
           }
           const filename = `${(info.title||'audio').replace(/[^\w\- ]/g,'').slice(0,60)}.mp3`;
           // Kaydet
@@ -1050,7 +1097,7 @@ window.handleSharedText = handleSharedText;
 })();
 
 // --- Otomatik Güncelleme (GitHub Releases) ---
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.1.2';
 const GITHUB_REPO = 'keremmkilincc-wq/indirgitsin';
 const UPDATE_CHECK_KEY = 'indir_gitsin_update_dismiss';
 const UPDATE_LAST_CHECK = 'indir_gitsin_last_check';
