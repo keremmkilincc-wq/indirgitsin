@@ -858,8 +858,12 @@ function formatHistoryDate(iso){
 function renderHistory(){
   const h=loadHistory();
   const countEl=$('#historyCount');
+  const navCountEl=$('#navHistoryCount');
   if(countEl){
     if(h.length>0){ countEl.textContent=h.length; countEl.classList.remove('hidden'); } else { countEl.classList.add('hidden'); }
+  }
+  if(navCountEl){
+    if(h.length>0){ navCountEl.textContent=h.length; navCountEl.classList.remove('hidden'); } else { navCountEl.classList.add('hidden'); }
   }
   if(h.length===0){
     historyList.innerHTML=`<div class="history-empty"><div class="history-empty-icon">📭</div><b style="font-size:13px">Henüz indirme yok</b><p>İlk YouTube linkini yapıştır ve indir gitsin!</p></div>`;
@@ -874,7 +878,7 @@ function renderHistory(){
     const badgeText = item.format || 'Görüntülendi';
     const timeText = formatHistoryDate(item.date);
     div.innerHTML=`<img src="${item.thumb}" alt="" loading="lazy"><div class="history-item-main"><b title="${(item.title||'').replace(/"/g,'&quot;')}">${item.title||'Bilinmeyen Başlık'}</b><div class="history-item-meta"><span class="history-badge ${badgeClass}">${badgeText}</span><span class="history-time">${timeText}</span></div></div><button class="history-delete" title="Sil">✕</button>`;
-    div.addEventListener('click',()=>{ urlInput.value=item.url; handleAnalyze(); window.scrollTo({top:0,behavior:'smooth'}); });
+    div.addEventListener('click',()=>{ if(window.switchTab) window.switchTab('indir'); urlInput.value=item.url; urlInput.dispatchEvent(new Event('input')); handleAnalyze(); window.scrollTo({top:0,behavior:'smooth'}); });
     const delBtn=div.querySelector('.history-delete');
     if(delBtn) delBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -946,20 +950,54 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>{
 }));
 $('#clearHistory').addEventListener('click', ()=>{ localStorage.removeItem('indir_gitsin_history'); renderHistory(); });
 $('#cancelDl').addEventListener('click', ()=> progressModal.classList.add('hidden'));
-// About modal
+// Sekmeli navigasyon - İndir / Geçmiş / Hakkında
+(function(){
+  const tabs = {
+    indir: $('#tab-indir'),
+    gecmis: $('#tab-gecmis'),
+    hakkinda: $('#tab-hakkinda')
+  };
+  const navBtns = document.querySelectorAll('.bottom-nav .nav-item[data-tab]');
+  window.switchTab = function(name){
+    Object.entries(tabs).forEach(([k, el])=>{
+      if(!el) return;
+      el.classList.toggle('hidden', k!==name);
+      el.classList.toggle('active', k===name);
+    });
+    navBtns.forEach(b=>{
+      b.classList.toggle('active', b.dataset.tab===name);
+    });
+    window.scrollTo({top:0, behavior:'smooth'});
+    if(name==='gecmis') renderHistory();
+  };
+  navBtns.forEach(b=>{
+    b.addEventListener('click', ()=> switchTab(b.dataset.tab));
+  });
+  // History item tıklandığında İndir sekmesine dön
+  const origRenderHistory = renderHistory;
+  // expose
+  window._switchTab = window.switchTab;
+})();
+// About modal (hem tab hem modal için)
 (function(){
   const aboutModal=$('#aboutModal');
-  const aboutBtn=$('#aboutBtn');
   const aboutClose=$('#aboutClose');
+  const openAboutModalBtn=$('#openAboutModalBtn');
   function openAbout(){ aboutModal?.classList.remove('hidden'); }
   function closeAbout(){ aboutModal?.classList.add('hidden'); }
-  aboutBtn?.addEventListener('click', openAbout);
+  openAboutModalBtn?.addEventListener('click', openAbout);
   aboutClose?.addEventListener('click', closeAbout);
   aboutModal?.addEventListener('click', (e)=>{ if(e.target===aboutModal) closeAbout(); });
   document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeAbout(); });
-  // Hakkında içindeki güncelle butonu
+  // Hakkında içindeki güncelle butonları (modal + tab)
   $('#aboutUpdateCheck')?.addEventListener('click', async()=>{
     const b=$('#aboutUpdateCheck');
+    if(b){ b.textContent='⏳ Denetleniyor...'; b.disabled=true; }
+    await checkForUpdate(true);
+    setTimeout(()=>{ if(b){ b.textContent='🔄 Güncellemeyi Denetle'; b.disabled=false; } }, 1200);
+  });
+  $('#aboutTabUpdateCheck')?.addEventListener('click', async()=>{
+    const b=$('#aboutTabUpdateCheck');
     if(b){ b.textContent='⏳ Denetleniyor...'; b.disabled=true; }
     await checkForUpdate(true);
     setTimeout(()=>{ if(b){ b.textContent='🔄 Güncellemeyi Denetle'; b.disabled=false; } }, 1200);
@@ -1065,6 +1103,7 @@ function handleSharedText(text){
   // clean trailing quotes / whitespace
   const clean = url.replace(/[\s"']+$/,'').trim();
   if(isYouTubeUrl(clean)){
+    if(window.switchTab) window.switchTab('indir');
     urlInput.value = clean;
     urlInput.dispatchEvent(new Event('input'));
     setTimeout(handleAnalyze, 350);
@@ -1139,7 +1178,7 @@ window.handleSharedText = handleSharedText;
 })();
 
 // --- Otomatik Güncelleme (GitHub Releases) ---
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const GITHUB_REPO = 'keremmkilincc-wq/indirgitsin';
 const UPDATE_CHECK_KEY = 'indir_gitsin_update_dismiss';
 const UPDATE_LAST_CHECK = 'indir_gitsin_last_check';

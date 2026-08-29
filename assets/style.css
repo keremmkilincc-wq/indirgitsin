@@ -1,12 +1,13 @@
 :root{
   --bg:#0a0a0f;
-  --glass:rgba(255,255,255,0.08);
-  --glass-border:rgba(255,255,255,0.12);
+  --glass:rgba(255,255,255,0.07);
+  --glass-border:rgba(255,255,255,0.11);
   --text:#f1f1f5;
   --muted:#a1a1b5;
   --primary:#FF0033;
-  --primary2:#FF3366;
-  --radius:24px;
+  --primary2:#7c3aed;
+  --radius:20px;
+  --radius-sm:14px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{
@@ -53,8 +54,11 @@ body.light .bottom-nav{background:rgba(255,255,255,0.85);border-color:rgba(15,23
 .header-actions{display:flex;gap:8px}
 .icon-btn{width:40px;height:40px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:var(--text);display:grid;place-items:center;cursor:pointer;font-size:14px;text-decoration:none}
 .icon-btn:hover{background:rgba(255,255,255,0.12)}
-.container{max-width:980px;margin:0 auto;padding:8px 20px;display:flex;flex-direction:column;gap:18px}
-.hero-card{padding:28px 24px}
+.container{max-width:980px;margin:0 auto;padding:8px 20px;display:flex;flex-direction:column;gap:14px}
+.hero-card{padding:22px 20px}
+.tab-content{display:flex;flex-direction:column;gap:14px;animation:tabIn 0.22s ease}
+.tab-content.hidden{display:none!important}
+@keyframes tabIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .hero-badge{display:inline-block;font-size:12px;font-weight:600;letter-spacing:0.06em;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.1);color:var(--muted)}
 .hero-title{font-family:'Outfit',sans-serif;font-size:32px;font-weight:800;letter-spacing:-0.03em;margin:14px 0 6px;line-height:1.1}
 .gradient-text{background:linear-gradient(135deg,#FF0033 30%,#7c3aed 90%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}

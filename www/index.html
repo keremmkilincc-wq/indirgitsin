@@ -54,113 +54,149 @@
 </div>
 
 <main class="container">
-  <!-- Hero Card -->
-  <section class="hero-card glass">
-    <div class="hero-badge">✨ YouTube • YouTube Music • Shorts • Playlist</div>
-    <h2 class="hero-title">Linki yapıştır, <span class="gradient-text">indir gitsin.</span></h2>
-    <p class="hero-sub">YouTube uygulamasından <b>Paylaş → İndir Gitsin</b> diyerek de indirebilirsin.</p>
+  <!-- Sekme: İndir -->
+  <section id="tab-indir" class="tab-content active">
+    <section class="hero-card glass">
+      <div class="hero-badge">✨ YouTube • YouTube Music • Shorts • Playlist</div>
+      <h2 class="hero-title">Linki yapıştır, <span class="gradient-text">indir gitsin.</span></h2>
+      <p class="hero-sub">YouTube uygulamasından <b>Paylaş → İndir Gitsin</b> diyerek de indirebilirsin.</p>
 
-    <div class="input-group">
-      <div class="input-wrapper">
-        <span class="input-icon">🔗</span>
-        <input id="urlInput" type="url" placeholder="https://youtube.com/watch?v=... veya https://music.youtube.com/..." autocomplete="off" spellcheck="false">
-        <button id="pasteBtn" class="paste-btn" title="Panodan yapıştır">Yapıştır</button>
-        <button id="clearBtn" class="clear-btn hidden" title="Temizle">✕</button>
+      <div class="input-group">
+        <div class="input-wrapper">
+          <span class="input-icon">🔗</span>
+          <input id="urlInput" type="url" placeholder="https://youtube.com/watch?v=... veya https://music.youtube.com/..." autocomplete="off" spellcheck="false">
+          <button id="pasteBtn" class="paste-btn" title="Panodan yapıştır">Yapıştır</button>
+          <button id="clearBtn" class="clear-btn hidden" title="Temizle">✕</button>
+        </div>
+        <button id="analyzeBtn" class="primary-btn">
+          <span id="analyzeText">Çözümle</span>
+          <span id="analyzeSpinner" class="spinner hidden"></span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
       </div>
-      <button id="analyzeBtn" class="primary-btn">
-        <span id="analyzeText">Çözümle</span>
-        <span id="analyzeSpinner" class="spinner hidden"></span>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </button>
-    </div>
 
-    <div class="chips">
-      <button class="chip" data-sample="https://www.youtube.com/watch?v=jNQXAC9IVRw">Örnek: YouTube</button>
-      <button class="chip" data-sample="https://music.youtube.com/watch?v=jNQXAC9IVRw">Örnek: Music</button>
-      <button class="chip" data-sample="https://youtu.be/jNQXAC9IVRw">Örnek: youtu.be</button>
-      <button class="chip" data-sample="https://www.youtube.com/shorts/jNQXAC9IVRw">Örnek: Shorts</button>
-    </div>
+      <div class="chips">
+        <button class="chip" data-sample="https://www.youtube.com/watch?v=jNQXAC9IVRw">Örnek: YouTube</button>
+        <button class="chip" data-sample="https://music.youtube.com/watch?v=jNQXAC9IVRw">Örnek: Music</button>
+        <button class="chip" data-sample="https://youtu.be/jNQXAC9IVRw">Örnek: youtu.be</button>
+        <button class="chip" data-sample="https://www.youtube.com/shorts/jNQXAC9IVRw">Örnek: Shorts</button>
+      </div>
 
-    <div class="howto">
-      <div class="howto-item"><span>1</span><p><b>Linki kopyala</b><br>YouTube veya Music'ten</p></div>
-      <div class="howto-arrow">→</div>
-      <div class="howto-item"><span>2</span><p><b>Yapıştır</b><br>veya Paylaş → İndir Gitsin</p></div>
-      <div class="howto-arrow">→</div>
-      <div class="howto-item"><span>3</span><p><b>Kalite seç & indir</b><br>MP4 / MP3 / Audio</p></div>
-    </div>
+      <div class="howto">
+        <div class="howto-item"><span>1</span><p><b>Linki kopyala</b><br>YouTube veya Music'ten</p></div>
+        <div class="howto-arrow">→</div>
+        <div class="howto-item"><span>2</span><p><b>Yapıştır</b><br>veya Paylaş → İndir Gitsin</p></div>
+        <div class="howto-arrow">→</div>
+        <div class="howto-item"><span>3</span><p><b>Kalite seç & indir</b><br>MP4 / MP3 / Audio</p></div>
+      </div>
+    </section>
+
+    <div id="statusBox" class="status hidden" style="margin-top:14px"></div>
+
+    <section id="previewCard" class="preview-card glass hidden" style="margin-top:14px">
+      <div class="preview-thumb-wrap">
+        <img id="thumb" src="" alt="thumbnail">
+        <span id="duration" class="duration-badge">00:00</span>
+        <span id="sourceBadge" class="source-badge">YouTube</span>
+      </div>
+      <div class="preview-info">
+        <div style="display:flex;align-items:start;gap:8px">
+          <div style="flex:1;min-width:0">
+            <h3 id="videoTitle">Video Başlığı</h3>
+            <p id="videoChannel">Kanal • 1.2M görüntüleme</p>
+            <p id="videoMeta" class="meta"></p>
+          </div>
+          <div style="position:relative;flex-shrink:0">
+            <button id="moreBtn" class="icon-btn" style="width:36px;height:36px;border-radius:10px;font-size:18px;line-height:1" title="Seçenekler">⋮</button>
+            <div id="moreMenu" class="more-menu hidden glass">
+              <button data-action="m4a">🎵 M4A indir</button>
+              <button data-action="mp3">🎵 MP3 indir</button>
+              <button data-action="video">🎬 Video indir (720p)</button>
+              <button data-action="copy">🔗 Linki kopyala</button>
+            </div>
+          </div>
+        </div>
+        <div class="preview-actions">
+          <button id="previewPlay" class="ghost-btn">▶ Önizle</button>
+          <a id="openYt" href="#" target="_blank" class="ghost-btn">↗ YouTube'da aç</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="optionsCard" class="options-card glass hidden" style="margin-top:14px">
+      <div class="options-header">
+        <h3>İndirme Seçenekleri</h3>
+        <div class="filter-tabs">
+          <button class="tab active" data-filter="all">Tümü</button>
+          <button class="tab" data-filter="video">Video</button>
+          <button class="tab" data-filter="audio">Ses / MP3</button>
+        </div>
+      </div>
+      <div id="optionsList" class="options-list"></div>
+      <p class="hint">💡 <b>Doğrudan mod aktif</b> — MP4/M4A/MP3 sunucusuz doğrudan cihaza iner. Dosyalar <code>İndirilenler/IndirGitsin</code> klasörüne kaydedilir.</p>
+      <p id="serverStatus" class="hint" style="margin-top:6px"></p>
+    </section>
   </section>
 
-  <!-- Status -->
-  <div id="statusBox" class="status hidden"></div>
-
-  <!-- Video Preview -->
-  <section id="previewCard" class="preview-card glass hidden">
-    <div class="preview-thumb-wrap">
-      <img id="thumb" src="" alt="thumbnail">
-      <span id="duration" class="duration-badge">00:00</span>
-      <span id="sourceBadge" class="source-badge">YouTube</span>
-    </div>
-    <div class="preview-info">
-      <div style="display:flex;align-items:start;gap:8px">
-        <div style="flex:1;min-width:0">
-          <h3 id="videoTitle">Video Başlığı</h3>
-          <p id="videoChannel">Kanal • 1.2M görüntüleme</p>
-          <p id="videoMeta" class="meta"></p>
+  <!-- Sekme: Geçmiş -->
+  <section id="tab-gecmis" class="tab-content hidden">
+    <section id="historyCard" class="history-card glass">
+      <div class="history-header">
+        <h3>🕘 Geçmiş <span id="historyCount" class="history-count hidden">0</span></h3>
+        <button id="clearHistory" class="ghost-btn small">Temizle</button>
+      </div>
+      <div id="historyList" class="history-list">
+        <div class="history-empty">
+          <div class="history-empty-icon">📭</div>
+          <b style="font-size:13px">Henüz indirme yok</b>
+          <p>İndirdiklerin burada listelenecek</p>
         </div>
-        <div style="position:relative;flex-shrink:0">
-          <button id="moreBtn" class="icon-btn" style="width:36px;height:36px;border-radius:10px;font-size:18px;line-height:1" title="Seçenekler">⋮</button>
-          <div id="moreMenu" class="more-menu hidden glass">
-            <button data-action="m4a">🎵 M4A indir</button>
-            <button data-action="mp3">🎵 MP3 indir</button>
-            <button data-action="video">🎬 Video indir (720p)</button>
-            <button data-action="copy">🔗 Linki kopyala</button>
+      </div>
+    </section>
+  </section>
+
+  <!-- Sekme: Hakkında -->
+  <section id="tab-hakkinda" class="tab-content hidden">
+    <div class="glass" style="overflow:hidden;padding:0">
+      <div class="about-hero" style="margin:0;border-radius:0">
+        <div class="about-hero-inner">
+          <div class="logo-icon" style="width:56px;height:56px;border-radius:16px"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" fill="white" opacity="0.95"/><path d="M2 17l10 5 10-5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/><path d="M2 12l10 5 10-5" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/><circle cx="12" cy="12" r="3" fill="white" opacity="0.95"/></svg></div>
+          <div style="flex:1">
+            <h3 style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.02em">İndir Gitsin</h3>
+            <p style="font-size:12px;opacity:0.9;margin-top:2px">YouTube & Music • Hızlı • Ücretsiz</p>
+            <div class="about-version-badge">✦ v1.3.0 • 2026 • MIT</div>
           </div>
         </div>
       </div>
-      <div class="preview-actions">
-        <button id="previewPlay" class="ghost-btn">▶ Önizle</button>
-        <a id="openYt" href="#" target="_blank" class="ghost-btn">↗ YouTube'da aç</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- Download Options -->
-  <section id="optionsCard" class="options-card glass hidden">
-    <div class="options-header">
-      <h3>İndirme Seçenekleri</h3>
-      <div class="filter-tabs">
-        <button class="tab active" data-filter="all">Tümü</button>
-        <button class="tab" data-filter="video">Video</button>
-        <button class="tab" data-filter="audio">Ses / MP3</button>
-      </div>
-    </div>
-    <div id="optionsList" class="options-list"></div>
-    <p class="hint">💡 <b>Doğrudan mod aktif</b> — MP4/M4A/MP3 sunucusuz doğrudan cihaza iner (MP3 cihazda dönüştürülür). 1080p+ için isteğe bağlı <b>⚙️ Sunucu</b> ekleyebilirsin. Dosyalar <code>İndirilenler/IndirGitsin</code> klasörüne kaydedilir.</p>
-    <p id="serverStatus" class="hint" style="margin-top:6px"></p>
-  </section>
-
-  <!-- History - Derli Toplu -->
-  <section id="historyCard" class="history-card glass">
-    <div class="history-header">
-      <h3>🕘 Geçmiş <span id="historyCount" class="history-count hidden">0</span></h3>
-      <div style="display:flex;gap:6px">
-        <button id="clearHistory" class="ghost-btn small">Temizle</button>
-      </div>
-    </div>
-    <div id="historyList" class="history-list">
-      <div class="history-empty">
-        <div class="history-empty-icon">📭</div>
-        <b style="font-size:13px">Henüz indirme yok</b>
-        <p>İlk YouTube linkini yapıştır ve indir gitsin!</p>
+      <div style="padding:16px">
+        <p style="font-size:13px;line-height:1.6;color:var(--muted)">Link yapıştır veya <b style="color:var(--text)">YouTube → Paylaş → İndir Gitsin</b> ile tek tıkla indir. Modern tasarım, sunucusuz doğrudan indirme ve otomatik güncelleme.</p>
+        <div class="about-features">
+          <div class="about-feature"><div class="about-feature-icon">🎬</div><div><b>MP4 Video</b><span>360p • 720p • 1080p</span></div></div>
+          <div class="about-feature"><div class="about-feature-icon">🎵</div><div><b>M4A / MP3</b><span>Ses + dönüştürme</span></div></div>
+          <div class="about-feature"><div class="about-feature-icon">⚡</div><div><b>Sunucusuz</b><span>Piped + Innertube</span></div></div>
+          <div class="about-feature"><div class="about-feature-icon">🔄</div><div><b>Otomatik Güncelle</b><span>GitHub Releases</span></div></div>
+        </div>
+        <div class="about-stats">
+          <div class="about-stat"><b>4+</b><span>Format</span></div>
+          <div class="about-stat"><b>∞</b><span>İndirme</span></div>
+          <div class="about-stat"><b>24/7</b><span>Aktif</span></div>
+        </div>
+        <div class="about-actions">
+          <a href="https://github.com/keremmkilincc-wq/indirgitsin" target="_blank" class="ghost-btn about-link" style="justify-content:center">⬢ GitHub Repo</a>
+          <a href="https://github.com/keremmkilincc-wq" target="_blank" class="ghost-btn about-link" style="justify-content:center">👤 @keremmkilincc-wq</a>
+          <button id="aboutTabUpdateCheck" class="download-btn" style="justify-content:center;width:100%">🔄 Güncellemeyi Denetle</button>
+          <button id="openAboutModalBtn" class="ghost-btn" style="justify-content:center;width:100%">ℹ Detaylı Hakkında</button>
+        </div>
+        <p style="font-size:11px;color:var(--muted);margin-top:14px;text-align:center;line-height:1.5">Yalnızca haklarına sahip olduğunuz içerikleri indirin.<br>© 2026 İndir Gitsin • MIT</p>
       </div>
     </div>
   </section>
 </main>
 
 <nav class="bottom-nav glass">
-  <button class="nav-item active" onclick="window.scrollTo({top:0,behavior:'smooth'})"><span>⬇</span> İndir</button>
-  <button class="nav-item" onclick="document.getElementById('historyCard').scrollIntoView({behavior:'smooth'})"><span>🕘</span> Geçmiş</button>
-  <button class="nav-item" id="aboutBtn"><span>ℹ</span> Hakkında</button>
+  <button class="nav-item active" data-tab="indir"><span>⬇</span> İndir</button>
+  <button class="nav-item" data-tab="gecmis"><span>🕘</span> Geçmiş <span id="navHistoryCount" class="hidden" style="font-size:10px;background:rgba(255,0,51,0.15);padding:2px 6px;border-radius:999px;margin-left:2px"></span></button>
+  <button class="nav-item" data-tab="hakkinda"><span>ℹ</span> Hakkında</button>
 </nav>
 
 <!-- Download progress modal -->
@@ -208,7 +244,7 @@
         <div style="flex:1">
           <h3 style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.02em">İndir Gitsin</h3>
           <p style="font-size:12px;opacity:0.9;margin-top:2px">YouTube & YouTube Music • Hızlı • Ücretsiz</p>
-          <div class="about-version-badge">✦ v1.2.0 • 2026 • MIT</div>
+          <div class="about-version-badge">✦ v1.3.0 • 2026 • MIT</div>
         </div>
         <button id="aboutClose" class="icon-btn" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.2);color:white">✕</button>
       </div>
