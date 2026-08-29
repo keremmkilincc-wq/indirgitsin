@@ -37,6 +37,27 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Sync version (README + app) - otomatik
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          echo "📦 package.json version: v$VER"
+          # Tag ile tetiklendiyse tag versiyonunu esas al
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG_VER="${{ github.ref_name }}"
+            TAG_VER=${TAG_VER#v}
+            if [ "$TAG_VER" != "$VER" ]; then
+              echo "🏷 Tag v$TAG_VER != package v$VER → tag'e senkronla"
+              VER=$TAG_VER
+            fi
+          fi
+          echo "🔄 README + app dosyaları v$VER ile senkronlanıyor (logo: assets/icon.svg)"
+          node scripts/bump-version.js $VER || true
+          echo "--- README badge ---"
+          grep -o "version-v[^-]*-" README.md || true
+          echo "--- APP_VERSION ---"
+          grep -o "APP_VERSION = '[^']*'" assets/app.js || true
+          git diff --stat || true
+
       - name: Prepare web assets
         run: |
           mkdir -p www

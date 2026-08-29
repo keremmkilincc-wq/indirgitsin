@@ -10,7 +10,10 @@
     "cap:add:android": "npx cap add android",
     "cap:sync": "npx cap sync",
     "cap:open:android": "npx cap open android",
-    "build": "npx cap sync android"
+    "build": "npx cap sync android",
+    "bump": "node scripts/bump-version.js",
+    "bump:patch": "node scripts/bump-version.js",
+    "sync:readme": "node scripts/bump-version.js"
   },
   "dependencies": {
     "@capacitor/app": "^6.0.0",
