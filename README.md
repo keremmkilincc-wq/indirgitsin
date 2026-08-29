@@ -1,104 +1,251 @@
-# İndir Gitsin — YouTube & YouTube Music İndirici
+<div align="center">
 
-Modern, kullanıcı dostu YouTube indirme uygulaması. **Link yapıştır** veya **YouTube → Paylaş → İndir Gitsin** ile tek tıkla indir.
+<img src="assets/icon.svg" width="88" height="88" alt="İndir Gitsin Logo" />
 
-![İndir Gitsin](assets/icon.svg)
+# İndir Gitsin
 
-## Özellikler
-- 🔗 **Link yapıştırınca çözümle**: YouTube, youtu.be, Music, Shorts, playlist
-- 📤 **Share Intent**: YouTube / YouTube Music uygulamasından Paylaş deyince *İndir Gitsin* çıkar, link otomatik çözümlenir
-- 🎬🎵 **Video & Ses**: MP4 (1080p/720p/360p), M4A, OPUS, MP3 (yt-dlp + ffmpeg ile dönüştürme)
-- ✨ **Modern Arayüz**: Glassmorphism, gradient, dark mode, mobile-first, PWA
-- 🧪 **APK olmadan test**: Tarayıcıdan direkt çalışır
-- 🚀 **Otomatik Release**: `main`'e push → GitHub Actions APK build + Release oluşturur
+### YouTube & YouTube Music için en hızlı, en sade indirici
 
-## Teknoloji Seçimi
-| Katman | Teknoloji | Neden |
-|---|---|---|
-| Frontend | **PWA (HTML/CSS/JS)** + Capacitor | APK olmadan tarayıcıda test, aynı kod ile native APK. Modern glass UI, tek kod tabanı |
-| Backend | **Python FastAPI + yt-dlp** | En stabil YouTube extractor, hem normal hem Music destekler, ffmpeg ile MP3 dönüşümü |
-| Android | **Capacitor 6** | Share Intent (SEND/VIEW) için native intent-filter, Play Store uyumlu, WebView ile PWA'yı sarmalar |
-| CI/CD | **GitHub Actions** | Push → otomatik `assembleDebug` + Release + APK artifact |
+**Link yapıştır** veya **YouTube → Paylaş → İndir Gitsin** de, gerisini o halleder.
 
-> Alternatif Flutter düşünüldü; fakat Windows ortamında hızlı prototipleme ve APK olmadan web test gereksinimi için PWA+Capacitor daha hızlı ve hafif.
+<br/>
 
-## Hızlı Başlangıç (APK olmadan test)
+[![Version](https://img.shields.io/badge/version-v1.4.0-FF0033?style=for-the-badge&labelColor=0a0a0f)](https://github.com/keremmkilincc-wq/indirgitsin/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/keremmkilincc-wq/indirgitsin/release.yml?branch=main&label=build&style=for-the-badge&labelColor=0a0a0f&color=7c3aed)](https://github.com/keremmkilincc-wq/indirgitsin/actions)
+[![Downloads](https://img.shields.io/github/downloads/keremmkilincc-wq/indirgitsin/total?style=for-the-badge&labelColor=0a0a0f&color=06b6d4)](https://github.com/keremmkilincc-wq/indirgitsin/releases)
+[![License](https://img.shields.io/badge/license-MIT-10b981?style=for-the-badge&labelColor=0a0a0f)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Android-3DDC84?style=for-the-badge&labelColor=0a0a0f&logo=android)](https://github.com/keremmkilincc-wq/indirgitsin/releases)
 
-### 1) Tarayıcıda önizle (backend olmadan demo)
-```bash
-python -m http.server 8000
-# http://localhost:8000 aç → örnek linklerle dene
-# Demo modunda gerçek video yerine örnek dosya indirir
+<br/>
+
+[📥 APK İndir](https://github.com/keremmkilincc-wq/indirgitsin/releases/latest) • [🌐 Canlı Demo](#-hızlı-başlangıç) • [📖 Dokümantasyon](#-proje-yapısı) • [🐛 Hata Bildir](https://github.com/keremmkilincc-wq/indirgitsin/issues)
+
+</div>
+
+---
+
+## ✨ Neden İndir Gitsin?
+
+<table>
+<tr>
+<td width="50%">
+
+**Tek dokunuşta** YouTube, YouTube Music, Shorts ve youtu.be linklerini çözümler. Sunucusuz doğrudan mod ile **MP4 / M4A doğrudan cihaza** iner, **MP3 cihazda FFmpeg.wasm ile** dönüştürülür. İstersen kendi backend’ini ekleyip 1080p+ ve birleştirme için kullanırsın.
+
+</td>
+<td width="50%">
+
+```mermaid
+flowchart LR
+  A[YouTube Linki] --> B{Paylaş / Yapıştır}
+  B --> C[ Piped + Innertube ]
+  C --> D[ MP4 / M4A doğrudan ]
+  C --> E[ MP3 cihazda dönüştür ]
+  D --> F[Download/IndirGitsin]
+  E --> F
 ```
 
-### 2) Gerçek indirme ile (backend'li)
+</td>
+</tr>
+</table>
+
+---
+
+## 🎬 Ekran Görüntüleri
+
+<div align="center">
+
+| İndir Sekmesi | Geçmiş | Hakkında |
+|---|---|---|
+| Link yapıştır, kalite seç, indir | Grid, badge, oynat & sil | Glass hero, özellikler, güncelle |
+| *Hero + Preview + Seçenekler* | *18 son işlem, zaman etiketi* | *v1.4.0, stats, repo linkleri* |
+
+> **İpucu:** `assets/icon.svg` ve `manifest.json` ile tam PWA — ana ekrana ekle, uygulama gibi kullan.
+
+</div>
+
+---
+
+## 🚀 Özellikler
+
+| Özellik | Açıklama |
+|---|---|
+| 🔗 **Evrensel Link** | `youtube.com`, `youtu.be`, `music.youtube.com`, `m.youtube.com`, `Shorts` |
+| 📤 **Paylaş → İndir Gitsin** | Android `SEND` + `VIEW` intent-filter, `MainActivity.java` native bridge |
+| 🎬 **Video** | MP4 360p / 480p / 720p / 1080p (progressive doğrudan) |
+| 🎵 **Ses** | M4A (128kbps), OPUS, **MP3 cihazda dönüştür** (FFmpeg.wasm 0.11 & 0.12 dual) |
+| ⚡ **Sunucusuz** | Piped → Innertube fallback, `nativeFetch` + `CapacitorHttp` CORS bypass, `Filesystem.downloadFile` + `DownloadManager` |
+| 🧩 **Sekmeli UI** | `İndir / Geçmiş / Hakkında` ayrı sekmeler, `bottom-nav` tab, akıcı `tabIn` animasyonu |
+| 🕘 **Geçmiş** | Grid, format badge (video/cyan, audio/amber), `az önce / 3dk / dün`, oynat ▶ & sil ✕, 30 kayıt |
+| ▶️ **Oynat** | Geçmişteki her videoyu/müziği taze URL ile `video`/`audio` modal’da oynat, YouTube’a git |
+| 🔄 **Otomatik Güncelleme** | `api.github.com/releases/latest` 4 saatte bir, banner + `🔄` buton, `APK İndir` native bridge |
+| 🎨 **Modern & Responsive** | Glassmorphism, gradient `Outfit` + `Inter`, dark/light persist, 980/768/640/380 breakpoint, compact |
+| 🧪 **APK’sız Test** | `python -m http.server 8000` ile tarayıcıda birebir test |
+
+---
+
+## 🧠 Teknoloji
+
+| Katman | Teknoloji | Neden bu? |
+|---|---|---|
+| **Frontend** | PWA `HTML/CSS/JS` + `Capacitor 6` | Tek kod tabanı, tarayıcıda test + native APK, WebView sarmalama |
+| **Backend (opsiyonel)** | `Python FastAPI` + `yt-dlp` + `ffmpeg` | En stabil extractor, hem normal hem Music, MP3 birleştirme |
+| **Android** | `Capacitor 6`, `DownloadManager`, `FileProvider` | Share Intent, `usesCleartextTraffic`, `file_paths.xml`, Play Store uyumlu |
+| **MP3 Dönüşüm** | `FFmpeg.wasm` | Sunucu yoksa cihazda M4A→MP3, fallback `m4a as mp3` |
+| **CI/CD** | `GitHub Actions` | `push main` / `tag v*` → `assembleDebug` + Release + artifact |
+
+> **Alternatif:** Flutter değerlendirildi ama Windows’ta hızlı prototipleme ve APK’sız web test için PWA+Capacitor daha hafif ve hızlı.
+
+---
+
+## ⚡ Hızlı Başlangıç
+
+### 1) Tarayıcıda (backend’siz, sunucusuz)
+
+```bash
+# klonla
+git clone https://github.com/keremmkilincc-wq/indirgitsin.git
+cd indirgitsin
+
+# önizle
+python -m http.server 8000
+# → http://localhost:8000
+# Örnek butonlarla dene, MP4/M4A doğrudan, MP3 cihazda dönüşür
+```
+
+### 2) Backend ile (gerçek, 1080p+ ve hızlı MP3)
+
 ```bash
 pip install -r server/requirements.txt
+# ffmpeg kurulu olmalı: https://ffmpeg.org
 python server/app.py
-# http://localhost:8000 aç
-# Gerçek YouTube linki yapıştır → kalite seç → indir
-# Not: MP3 için sistemde ffmpeg kurulu olmalı (https://ffmpeg.org)
+# → http://localhost:8000
+# ⚙️ Sunucu ayarı: http://192.168.1.15:8000 (ipconfig ile bul)
 ```
 
-## Android APK Oluşturma
+### 3) APK Kurulum (kullanıcı)
+
+1. [Releases](https://github.com/keremmkilincc-wq/indirgitsin/releases/latest) → `app-debug.apk` indir
+2. Android’de `Bilinmeyen kaynaklara izin ver` → kur
+3. YouTube’da bir video → **Paylaş → İndir Gitsin** → kalite seç → `İndirilenler/IndirGitsin` klasöründe
+
+---
+
+## 📱 Android APK Oluşturma
 
 ### Lokal (Android Studio)
+
 ```bash
 npm install
-npx cap add android
+npx cap add android      # ilk kez
 npx cap sync android
 npx cap open android
-# Android Studio > Build > Build APK
+# Android Studio → Build → Build APK(s)
 ```
 
-Share Intent manifest'i: `android/app/src/main/AndroidManifest.xml` — `SEND` ve `VIEW` intent-filter'ları içerir.
+Önemli dosyalar:
+* `android/app/src/main/AndroidManifest.xml` → `SEND`/`VIEW` intent-filter + `usesCleartextTraffic`
+* `android/app/src/main/res/xml/file_paths.xml` → `FileProvider` (yoksa build hatası)
+* `.github/MainActivity.java` → `DownloadManager` + `window.Android.download(url, filename)` bridge + `handleIntent`
 
-### Otomatik (GitHub)
-1. Repo'yu GitHub'a push et:
+### Otomatik (GitHub Actions)
+
 ```bash
-git init
-git add .
-git commit -m "feat: İndir Gitsin v1"
-git branch -M main
-git remote add origin https://github.com/KULLANICI/indir-gitsin.git
-git push -u origin main
-```
-2. `Actions` sekmesinde workflow çalışır → APK artifact + Release oluşur.
-3. Tag ile sürüm:
-```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.4.0
+git push origin v1.4.0
+# veya
+git push origin main
 ```
 
-## Proje Yapısı
+`release.yml` adımları: `Prepare web assets (→ www/)` → `npm install` → `cap add/sync` → `Patch Manifest & MainActivity + file_paths.xml` → `gradlew assembleDebug` → artifact + Release.
+
+Workflow badge’ini yukarıda görebilirsin. Her `main` push’u `v<run_number>` Release’i de oluşturur.
+
+---
+
+## 📂 Proje Yapısı
+
 ```
 kozauygulama/
-├─ index.html              # PWA ana sayfa (modern UI)
-├─ manifest.json           # PWA + share_target
+├─ index.html                 # Tabbed UI: indir / geçmiş / hakkında
+├─ manifest.json              # PWA + share_target + shortcuts
+├─ capacitor.config.json      # appId: com.indirgitsin.app, webDir: www
+├─ package.json               # v1.4.0
 ├─ assets/
-│  ├─ style.css            # Glassmorphism tema
-│  ├─ app.js               # Link çözümleme, indirme, history, share handling
+│  ├─ app.js                  # 1300+ satır: fetchInfo (Piped→Innertube), nativeFetch, downloadViaNative, ffmpeg dual, history, player, update
+│  ├─ style.css               # Glassmorphism, responsive, tab, history grid, about hero
 │  └─ icon.svg
+├─ www/                       # Build çıktısı (index + assets kopyası, cap sync için)
 ├─ server/
-│  ├─ app.py               # FastAPI + yt-dlp API (/api/info, /api/download)
+│  ├─ app.py                  # FastAPI: /api/health, /api/info, /api/download
 │  └─ requirements.txt
-├─ capacitor.config.json   # appId: com.indirgitsin.app
-├─ package.json
-├─ android/
-│  ├─ app/src/main/AndroidManifest.xml  # Share Intent
-│  └─ share-intent.js      # JS tarafı intent handler
-└─ .github/workflows/release.yml  # Otomatik APK Release
+├─ android/                   # Capacitor android (gradlew, app/src/main/...)
+│  ├─ app/src/main/AndroidManifest.xml
+│  └─ app/src/main/res/xml/file_paths.xml
+├─ .github/
+│  ├─ workflows/release.yml
+│  ├─ AndroidManifest.xml     # Template (CI’da kopyalanır)
+│  └─ MainActivity.java       # Template (CI’da kopyalanır)
+└─ README.md
 ```
 
-## API
-- `GET /api/health` → `{ok, yt_dlp}`
-- `GET /api/info?url=...` → `{id, title, channel, duration, thumbnail, formats[]}`
-- `GET /api/download?url=...&format_id=...&ext=...` → dosya stream
+---
 
-## Notlar
-- YouTube Music linkleri (`music.youtube.com`) aynı extractor ile desteklenir.
-- İndirilenler Android'de `Download/İndirGitsin` klasörüne kaydedilir (WebView download handler).
-- Yasal uyarı: Yalnızca haklarına sahip olduğunuz veya Creative Commons içerikleri indirin.
+## 🔌 API
 
-## Lisans
-MIT
+| Endpoint | Açıklama |
+|---|---|
+| `GET /api/health` | `{"ok": true, "yt_dlp": true, "ffmpeg": true}` |
+| `GET /api/info?url=...` | `{id, title, channel, duration, views, thumbnail, formats[]}` |
+| `GET /api/download?url=...&format_id=...&ext=...` | Dosya stream (`Content-Disposition` ile) |
+
+Frontend önce `Piped/Innertube` ile dener, backend sadece `hasServer=true` ise veya MP3 sunucu modunda kullanılır.
+
+---
+
+## 🎨 Arayüz Detayları
+
+* **Sekmeler:** `bottom-nav` → `switchTab('indir'|'gecmis'|'hakkinda')`, `tabIn` keyframe, `window.scrollTo(0)`
+* **Hero:** `badge` + `gradient-text` + `input-wrapper:focus-within` + `chips` yatay scroll
+* **Preview/Options:** `filter-tabs` (Tümü/Video/Ses), `option` hover lift, `download-btn` gradient
+* **Geçmiş:** `grid auto-fill 280px`, `history-badge`, `history-play` gradient, `history-delete` hover
+* **Player Modal:** `playerModal` → `video`/`audio` toggle, `fetchInfo` taze URL, fallback YouTube link
+* **About:** `about-hero` gradient + radial overlay, `about-features` 2×2 grid, `about-stats`
+
+---
+
+## ❓ SSS
+
+**M4A/MP3 inmiyor?** GoogleVideo linkleri CORS’lu. `nativeFetch` + `CapacitorHttp` ve `Filesystem.downloadFile` ile bypass ediliyor. MP3 için `FFmpeg.wasm` 0.11/0.12 dual destek var, internet zayıfsa `m4a as mp3` fallback devreye girer.
+
+**1080p neden yok?** Progressive MP4’ler genelde 720p’ye kadar. 1080p+ için backend’li `yt-dlp + ffmpeg` merge gerekir → `⚙️ Sunucu ayarı`.
+
+**Nereye kaydediliyor?** `İndirilenler/IndirGitsin/<başlık>.<ext>` (native) veya tarayıcı `Downloads`.
+
+**Sadece kendi videolarımı mı indirmeliyim?** Evet, yasal uyarıya uy: haklarına sahip olduğun veya izinli içerikler.
+
+---
+
+## 🤝 Katkı
+
+```bash
+git checkout -b feat/harika-ozellik
+# değişiklik yap
+git commit -m "feat: harika özellik"
+git push origin feat/harika-ozellik
+# PR aç → Actions APK’yi otomatik build eder
+```
+
+Issue açarken log’un `FAILURE: ...` kısmını ve `adb logcat` çıktısını ekle.
+
+---
+
+## 📄 Lisans
+
+MIT © 2026 **İndir Gitsin** — Crafted with ❤️ by [@keremmkilincc-wq](https://github.com/keremmkilincc-wq)
+
+<div align="center">
+
+**[⬆ Başa Dön](#indir-gitsin)**
+
+</div>
