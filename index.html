@@ -164,7 +164,7 @@
           <div style="flex:1">
             <h3 style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.02em">İndir Gitsin</h3>
             <p style="font-size:12px;opacity:0.9;margin-top:2px">YouTube & Music • Hızlı • Ücretsiz</p>
-            <div class="about-version-badge">✦ v1.3.0 • 2026 • MIT</div>
+            <div class="about-version-badge">✦ v1.4.0 • 2026 • MIT</div>
           </div>
         </div>
       </div>
@@ -244,7 +244,7 @@
         <div style="flex:1">
           <h3 style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.02em">İndir Gitsin</h3>
           <p style="font-size:12px;opacity:0.9;margin-top:2px">YouTube & YouTube Music • Hızlı • Ücretsiz</p>
-          <div class="about-version-badge">✦ v1.3.0 • 2026 • MIT</div>
+          <div class="about-version-badge">✦ v1.4.0 • 2026 • MIT</div>
         </div>
         <button id="aboutClose" class="icon-btn" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.2);color:white">✕</button>
       </div>
@@ -279,6 +279,30 @@
     </div>
 
     <p style="font-size:11px;color:var(--muted);margin-top:14px;text-align:center;line-height:1.5">Yasal uyarı: Yalnızca haklarına sahip olduğunuz veya izinli içerikleri indirin. YouTube Hizmet Şartlarına uyun.<br>© 2026 İndir Gitsin • Crafted with ❤️ • MIT</p>
+  </div>
+</div>
+
+<!-- Medya Oynatıcı Modal -->
+<div id="playerModal" class="modal hidden">
+  <div class="modal-content glass" style="max-width:640px;width:100%;padding:0;overflow:hidden;text-align:left">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.08)">
+      <div class="logo-icon" style="width:36px;height:36px;border-radius:10px;font-size:16px">▶</div>
+      <div style="flex:1;min-width:0">
+        <h3 id="playerTitle" style="font-family:'Outfit',sans-serif;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Oynatılıyor</h3>
+        <p id="playerSub" style="font-size:11px;color:var(--muted)">Yükleniyor...</p>
+      </div>
+      <button id="playerClose" class="icon-btn" style="width:36px;height:36px">✕</button>
+    </div>
+    <div id="playerContainer" style="background:#000;aspect-ratio:16/9;display:grid;place-items:center;position:relative;overflow:hidden">
+      <video id="playerVideo" controls playsinline style="width:100%;height:100%;display:none;background:#000"></video>
+      <audio id="playerAudio" controls style="width:100%;display:none"></audio>
+      <div id="playerPlaceholder" style="color:#666;font-size:13px;padding:20px;text-align:center">Medya hazırlanıyor...</div>
+      <div id="playerSpinner" class="spinner" style="position:absolute;width:28px;height:28px;border-width:3px;display:none"></div>
+    </div>
+    <div style="padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap">
+      <a id="playerOpenYt" href="#" target="_blank" class="ghost-btn" style="flex:1;justify-content:center">↗ YouTube’da aç</a>
+      <button id="playerDownload" class="download-btn" style="flex:1;justify-content:center">⬇ İndir</button>
+    </div>
   </div>
 </div>
 

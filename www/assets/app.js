@@ -877,8 +877,15 @@ function renderHistory(){
     const badgeClass = isAudio ? 'audio' : isVideo ? 'video' : '';
     const badgeText = item.format || 'Görüntülendi';
     const timeText = formatHistoryDate(item.date);
-    div.innerHTML=`<img src="${item.thumb}" alt="" loading="lazy"><div class="history-item-main"><b title="${(item.title||'').replace(/"/g,'&quot;')}">${item.title||'Bilinmeyen Başlık'}</b><div class="history-item-meta"><span class="history-badge ${badgeClass}">${badgeText}</span><span class="history-time">${timeText}</span></div></div><button class="history-delete" title="Sil">✕</button>`;
+    const playIcon = isAudio ? '🎵' : '▶';
+    const playClass = isAudio ? 'audio' : '';
+    div.innerHTML=`<img src="${item.thumb}" alt="" loading="lazy"><div class="history-item-main"><b title="${(item.title||'').replace(/"/g,'&quot;')}">${item.title||'Bilinmeyen Başlık'}</b><div class="history-item-meta"><span class="history-badge ${badgeClass}">${badgeText}</span><span class="history-time">${timeText}</span></div></div><div class="history-actions"><button class="history-play ${playClass}" title="Oynat">${playIcon}</button><button class="history-delete" title="Sil">✕</button></div>`;
     div.addEventListener('click',()=>{ if(window.switchTab) window.switchTab('indir'); urlInput.value=item.url; urlInput.dispatchEvent(new Event('input')); handleAnalyze(); window.scrollTo({top:0,behavior:'smooth'}); });
+    const playBtn=div.querySelector('.history-play');
+    if(playBtn) playBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openHistoryPlayer(item);
+    });
     const delBtn=div.querySelector('.history-delete');
     if(delBtn) delBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -900,6 +907,105 @@ function addToHistory(info, format){
   saveHistory(h.slice(0,30));
   renderHistory();
 }
+
+// Medya Oynatıcı - Geçmişteki video/müzik oynatma
+async function openHistoryPlayer(item){
+  const modal=$('#playerModal');
+  const videoEl=$('#playerVideo');
+  const audioEl=$('#playerAudio');
+  const titleEl=$('#playerTitle');
+  const subEl=$('#playerSub');
+  const placeholder=$('#playerPlaceholder');
+  const spinner=$('#playerSpinner');
+  const openYt=$('#playerOpenYt');
+  const dlBtn=$('#playerDownload');
+  const container=$('#playerContainer');
+  if(!modal) return;
+  const isAudio = (item.format||'').toLowerCase().includes('mp3') || (item.format||'').toLowerCase().includes('m4a') || (item.format||'').toLowerCase().includes('ses') || (item.format||'').toLowerCase().includes('audio');
+  if(titleEl) titleEl.textContent=item.title||'Oynatılıyor';
+  if(subEl) subEl.textContent=isAudio ? 'Ses hazırlanıyor...' : 'Video hazırlanıyor...';
+  if(placeholder){ placeholder.style.display='block'; placeholder.textContent=isAudio ? '🎵 Ses yükleniyor...' : '🎬 Video yükleniyor...'; }
+  if(videoEl){ videoEl.style.display='none'; videoEl.pause(); videoEl.removeAttribute('src'); }
+  if(audioEl){ audioEl.style.display='none'; audioEl.pause(); audioEl.removeAttribute('src'); }
+  if(spinner) spinner.style.display='block';
+  if(openYt) openYt.href=item.url;
+  if(dlBtn) dlBtn.onclick=()=>{ if(window.switchTab) window.switchTab('indir'); modal.classList.add('hidden'); urlInput.value=item.url; urlInput.dispatchEvent(new Event('input')); handleAnalyze(); };
+  modal.classList.remove('hidden');
+  try{
+    const info = await fetchInfo(item.url);
+    let mediaUrl='';
+    let mediaType='video';
+    if(isAudio){
+      const audioFmt = info.formats.find(f=> f.type==='audio' && f.url && f.url.startsWith('http')) || info.formats.find(f=> f.url && f.url.startsWith('http'));
+      if(audioFmt){ mediaUrl=audioFmt.url; mediaType='audio'; }
+    } else {
+      const videoFmt = info.formats.find(f=> f.type==='video' && f.url && f.url.startsWith('http')) || info.formats.find(f=> f.url && f.url.startsWith('http'));
+      if(videoFmt){ mediaUrl=videoFmt.url; mediaType= isAudio ? 'audio' : 'video'; }
+    }
+    if(!mediaUrl){
+      // fallback: YouTube embed
+      if(placeholder) placeholder.innerHTML=`Doğrudan oynatma linki alınamadı.<br><a href="${item.url}" target="_blank" style="color:#FF0033;text-decoration:underline">YouTube'da aç</a>`;
+      if(subEl) subEl.textContent='YouTube üzerinden izleyin';
+      if(spinner) spinner.style.display='none';
+      return;
+    }
+    if(spinner) spinner.style.display='none';
+    if(placeholder) placeholder.style.display='none';
+    if(mediaType==='audio'){
+      if(audioEl){
+        audioEl.src=mediaUrl;
+        audioEl.style.display='block';
+        container.style.aspectRatio='auto';
+        container.style.minHeight='80px';
+        audioEl.play().catch(()=>{});
+        if(subEl) subEl.textContent='🎵 Çalıyor • M4A/Audio';
+      }
+    } else {
+      if(videoEl){
+        videoEl.src=mediaUrl;
+        videoEl.style.display='block';
+        container.style.aspectRatio='16/9';
+        container.style.minHeight='';
+        videoEl.play().catch(()=>{});
+        if(subEl) subEl.textContent='🎬 Çalıyor • MP4';
+      }
+    }
+    if(dlBtn) dlBtn.onclick=()=>{
+      modal.classList.add('hidden');
+      if(videoEl) videoEl.pause();
+      if(audioEl) audioEl.pause();
+      if(window.switchTab) window.switchTab('indir');
+      urlInput.value=item.url;
+      urlInput.dispatchEvent(new Event('input'));
+      handleAnalyze();
+    };
+  }catch(e){
+    if(spinner) spinner.style.display='none';
+    if(placeholder){ placeholder.style.display='block'; placeholder.textContent='Oynatma hatası: '+(e.message||e); }
+    if(subEl) subEl.textContent='Hata oluştu';
+  }
+}
+(function setupPlayerModal(){
+  const modal=$('#playerModal');
+  const close=$('#playerClose');
+  const videoEl=$('#playerVideo');
+  const audioEl=$('#playerAudio');
+  function closePlayer(){
+    modal?.classList.add('hidden');
+    if(videoEl){ videoEl.pause(); videoEl.removeAttribute('src'); videoEl.style.display='none'; }
+    if(audioEl){ audioEl.pause(); audioEl.removeAttribute('src'); audioEl.style.display='none'; }
+  }
+  close?.addEventListener('click', closePlayer);
+  modal?.addEventListener('click', (e)=>{ if(e.target===modal) closePlayer(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && modal && !modal.classList.contains('hidden')) closePlayer(); });
+  // Preview oynat butonu da aynı player ile çalsın
+  $('#previewPlay')?.addEventListener('click', ()=>{
+    if(!currentInfo) return showStatus('Önce bir link çözümle','error');
+    const isAudioPreview = currentInfo.formats.some(f=> f.type==='audio' && f.url) && !currentInfo.formats.some(f=> f.type==='video' && f.url);
+    const mockItem={title: currentInfo.title, url: currentInfo.url, format: isAudioPreview ? 'M4A' : 'MP4'};
+    openHistoryPlayer(mockItem);
+  });
+})();
 
 // Main analyze
 async function handleAnalyze(){
@@ -1178,7 +1284,7 @@ window.handleSharedText = handleSharedText;
 })();
 
 // --- Otomatik Güncelleme (GitHub Releases) ---
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 const GITHUB_REPO = 'keremmkilincc-wq/indirgitsin';
 const UPDATE_CHECK_KEY = 'indir_gitsin_update_dismiss';
 const UPDATE_LAST_CHECK = 'indir_gitsin_last_check';
