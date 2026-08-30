@@ -191,6 +191,39 @@
       </div>
     </section>
 
+    <!-- Kanal + Yorum + Önerilen -->
+    <section id="izleChannelCard" class="glass hidden" style="padding:14px;margin-top:14px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <img id="izleChannelAvatar" src="" alt="" style="width:44px;height:44px;border-radius:50%;background:#111;object-fit:cover;display:none">
+        <div style="flex:1;min-width:0">
+          <b id="izleChannelName" style="font-size:14px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Kanal</b>
+          <span id="izleChannelSubs" style="font-size:11px;color:var(--muted)">-</span>
+        </div>
+        <button id="izleSubscribeBtn" class="download-btn" style="padding:8px 14px;font-size:12px;border-radius:999px">Abone Ol</button>
+        <button id="izleChannelOpen" class="ghost-btn small">Kanalı Aç</button>
+      </div>
+      <div id="izleChannelDesc" style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <span id="izleLikes" class="history-badge">👍 0</span>
+        <span id="izleViews" class="history-badge">👁 0</span>
+        <span id="izleDate" class="history-badge" style="background:rgba(255,255,255,0.06);color:var(--muted)">-</span>
+      </div>
+    </section>
+
+    <section id="izleCommentsCard" class="glass hidden" style="padding:16px;margin-top:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <h3 style="font-size:14px">💬 Yorumlar <span id="izleCommentsCount" style="font-size:11px;color:var(--muted)"></span></h3>
+        <button id="izleCommentsToggle" class="ghost-btn small">Gizle</button>
+      </div>
+      <div id="izleCommentsList" style="margin-top:12px;display:flex;flex-direction:column;gap:10px;max-height:420px;overflow-y:auto"></div>
+      <button id="izleCommentsMore" class="ghost-btn small hidden" style="margin:10px auto 0;display:flex">Daha fazla yorum</button>
+    </section>
+
+    <section id="izleRelatedCard" class="glass hidden" style="padding:16px;margin-top:14px">
+      <h3 style="font-size:14px;margin-bottom:12px">▶ Önerilenler</h3>
+      <div id="izleRelatedList" class="izle-grid" style="grid-template-columns:1fr"></div>
+    </section>
+
     <!-- Sonuçlar grid -->
     <section id="izleResultsCard" class="glass" style="padding:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
@@ -204,6 +237,93 @@
         <p>Farklı kelime dene veya Trend'e dön</p>
       </div>
       <button id="izleLoadMore" class="ghost-btn hidden" style="margin:14px auto 0;display:flex">Daha fazla yükle</button>
+    </section>
+  </section>
+
+  <!-- Sekme: Shorts (dikey, hızlı) -->
+  <section id="tab-shorts" class="tab-content hidden">
+    <section class="hero-card glass">
+      <div class="hero-badge">⚡ Shorts • Dikey • Hızlı</div>
+      <h2 class="hero-title">Shorts'u <span class="gradient-text">kaydırarak</span> keşfet.</h2>
+      <p class="hero-sub">Dikey video akışı — YouTube Shorts'u uygulama içinde, reklamsız.</p>
+      <div class="input-group">
+        <div class="input-wrapper">
+          <span class="input-icon">⚡</span>
+          <input id="shortsSearchInput" type="search" placeholder="Shorts ara: komik, dans, kedi..." autocomplete="off" spellcheck="false">
+          <button id="shortsClearBtn" class="clear-btn hidden">✕</button>
+        </div>
+        <button id="shortsSearchBtn" class="primary-btn"><span id="shortsSearchText">Ara</span><span id="shortsSearchSpinner" class="spinner hidden"></span>⚡</button>
+      </div>
+      <div class="chips" id="shortsChips">
+        <button class="chip shorts-chip active" data-q="shorts">🔥 Trend Shorts</button>
+        <button class="chip shorts-chip" data-q="komik shorts">😂 Komik</button>
+        <button class="chip shorts-chip" data-q="dans shorts">💃 Dans</button>
+        <button class="chip shorts-chip" data-q="kedi shorts">🐱 Kedi</button>
+        <button class="chip shorts-chip" data-q="futbol shorts">⚽ Futbol</button>
+        <button class="chip shorts-chip" data-q="yemek shorts">🍔 Yemek</button>
+      </div>
+      <div id="shortsStatusBox" class="status hidden" style="margin-top:12px"></div>
+    </section>
+    <section id="shortsPlayerWrap" class="glass hidden" style="overflow:hidden;padding:0;max-width:400px;margin:14px auto 0">
+      <div style="background:#000;aspect-ratio:9/16;max-height:68vh;display:grid;place-items:center;position:relative;overflow:hidden">
+        <video id="shortsVideo" controls playsinline loop style="width:100%;height:100%;display:none;background:#000;object-fit:cover"></video>
+        <div id="shortsPlaceholder" style="color:#666;font-size:13px;padding:20px;text-align:center">Shorts seç, burada oynar</div>
+        <div id="shortsSpinner" class="spinner" style="position:absolute;width:28px;height:28px;border-width:3px;display:none"></div>
+        <button id="shortsClose" class="icon-btn" style="position:absolute;top:10px;right:10px;width:32px;height:32px;background:rgba(0,0,0,0.6)">✕</button>
+      </div>
+      <div style="padding:12px 14px">
+        <h3 id="shortsTitle" style="font-size:14px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"></h3>
+        <p id="shortsChannel" style="font-size:11px;color:var(--muted);margin-top:4px"></p>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button id="shortsDownloadBtn" class="download-btn" style="flex:1;justify-content:center">⬇ İndir</button>
+          <button id="shortsShareBtn" class="ghost-btn" style="flex:1;justify-content:center">🔗 Paylaş</button>
+        </div>
+      </div>
+    </section>
+    <section class="glass" style="padding:16px;margin-top:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <h3 style="font-family:'Outfit',sans-serif;font-size:15px">⚡ Shorts Akışı</h3>
+        <span id="shortsCount" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+      <div id="shortsGrid" class="shorts-grid" style="margin-top:12px"></div>
+      <div id="shortsEmpty" class="history-empty hidden" style="margin-top:12px"><div class="history-empty-icon">⚡</div><b>Shorts yok</b><p>Farklı kelime dene</p></div>
+      <button id="shortsLoadMore" class="ghost-btn hidden" style="margin:14px auto 0;display:flex">Daha fazla</button>
+    </section>
+  </section>
+
+  <!-- Sekme: İndirilenler (Dosya Yöneticisi) -->
+  <section id="tab-indirilenler" class="tab-content hidden">
+    <section class="hero-card glass">
+      <div class="hero-badge">📁 İndirilenler • Dosya Yöneticisi</div>
+      <h2 class="hero-title">İndirdiklerin <span class="gradient-text">burada.</span></h2>
+      <p class="hero-sub">Tüm MP4/M4A/MP3'ler burada listelenir. Oynat, paylaş, sil veya klasörde göster.</p>
+      <div class="about-stats" style="margin-top:14px">
+        <div class="about-stat"><b id="filesTotal">0</b><span data-i18n="files_count">Dosya</span></div>
+        <div class="about-stat"><b id="filesVideo">0</b><span>Video</span></div>
+        <div class="about-stat"><b id="filesAudio">0</b><span>Ses</span></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button id="filesRefresh" class="ghost-btn" style="flex:1;justify-content:center">🔄 Yenile</button>
+        <button id="filesOpenFolder" class="ghost-btn" style="flex:1;justify-content:center">📂 Klasörü Aç</button>
+        <button id="filesClearAll" class="ghost-btn" style="flex:1;justify-content:center">🗑 Tümünü Temizle</button>
+      </div>
+      <div id="filesStatusBox" class="status hidden" style="margin-top:12px"></div>
+    </section>
+    <section class="glass" style="padding:16px;margin-top:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <h3 style="font-family:'Outfit',sans-serif;font-size:15px">📁 Dosyalarım</h3>
+        <div style="display:flex;gap:6px">
+          <button class="ghost-btn small files-filter active" data-f="all">Tümü</button>
+          <button class="ghost-btn small files-filter" data-f="video">Video</button>
+          <button class="ghost-btn small files-filter" data-f="audio">Ses</button>
+        </div>
+      </div>
+      <div id="filesList" class="files-list" style="margin-top:12px"></div>
+      <div id="filesEmpty" class="history-empty" style="margin-top:12px">
+        <div class="history-empty-icon">📭</div>
+        <b>Henüz dosya yok</b>
+        <p>İndirdiğin videolar burada görünecek</p>
+      </div>
     </section>
   </section>
 
@@ -233,7 +353,7 @@
           <div style="flex:1">
             <h3 style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.02em">İndir Gitsin</h3>
             <p style="font-size:12px;opacity:0.9;margin-top:2px">YouTube & Music • Hızlı • Ücretsiz</p>
-            <div class="about-version-badge">✦ v1.6.1 • 2026 • MIT</div>
+            <div class="about-version-badge">✦ v1.7.0 • 2026 • MIT</div>
           </div>
         </div>
       </div>
@@ -263,10 +383,12 @@
 </main>
 
 <nav class="bottom-nav glass">
-  <button class="nav-item active" data-tab="indir"><span>⬇</span> İndir</button>
-  <button class="nav-item" data-tab="izle"><span>▶</span> İzle</button>
-  <button class="nav-item" data-tab="gecmis"><span>🕘</span> Geçmiş <span id="navHistoryCount" class="hidden" style="font-size:10px;background:rgba(255,0,51,0.15);padding:2px 6px;border-radius:999px;margin-left:2px"></span></button>
-  <button class="nav-item" data-tab="hakkinda"><span>ℹ</span> Hakkında</button>
+  <button class="nav-item active" data-tab="indir"><span>⬇</span> <span data-i18n="nav_download">İndir</span></button>
+  <button class="nav-item" data-tab="izle"><span>▶</span> <span data-i18n="nav_watch">İzle</span></button>
+  <button class="nav-item" data-tab="shorts"><span>⚡</span> Shorts</button>
+  <button class="nav-item" data-tab="indirilenler"><span>📁</span> <span data-i18n="nav_files">Dosyalar</span> <span id="navFilesCount" class="hidden" style="font-size:10px;background:rgba(124,58,237,0.15);padding:2px 6px;border-radius:999px;margin-left:2px"></span></button>
+  <button class="nav-item" data-tab="gecmis"><span>🕘</span> <span data-i18n="nav_history">Geçmiş</span></button>
+  <button class="nav-item" data-tab="hakkinda"><span>ℹ</span> <span data-i18n="nav_about">Hakkında</span></button>
 </nav>
 
 <!-- Download progress modal -->
@@ -280,28 +402,63 @@
   </div>
 </div>
 
-<!-- Sunucu Ayarı modal -->
+<!-- Ayarlar modal - Dil + Sunucu + Tema -->
 <div id="settingsModal" class="modal hidden">
-  <div class="modal-content glass" style="max-width:480px;text-align:left">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-      <h3 style="font-family:'Outfit',sans-serif">⚙️ Sunucu Ayarı</h3>
+  <div class="modal-content glass" style="max-width:520px;text-align:left;padding:16px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      <h3 style="font-family:'Outfit',sans-serif">⚙️ <span data-i18n="settings_title">Ayarlar</span></h3>
       <button id="settingsClose" class="icon-btn" style="margin-left:auto">✕</button>
     </div>
-    <p style="font-size:12px;color:var(--muted);line-height:1.5"><b>Sunucu gerekli değil</b> — MP4/M4A/MP3 doğrudan cihaza iner (MP3 cihazda dönüştürülür). Yalnızca 1080p+ birleştirme için isteğe bağlı PC'de <code>python server/app.py</code> çalıştırıp IP gir.</p>
-    <div style="margin:12px 0;display:flex;gap:8px;align-items:center">
-      <span style="font-size:12px;opacity:0.7">API URL</span>
-      <input id="apiBaseInput" type="url" placeholder="http://192.168.1.100:8000" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(128,128,128,0.2);background:var(--glass);color:var(--text);font-size:13px">
+    <div style="display:flex;gap:6px;margin-bottom:14px;background:rgba(0,0,0,0.25);padding:4px;border-radius:999px;border:1px solid rgba(255,255,255,0.08)">
+      <button class="ghost-btn small settings-tab active" data-s="general" style="flex:1;justify-content:center;border-radius:999px">Genel</button>
+      <button class="ghost-btn small settings-tab" data-s="language" style="flex:1;justify-content:center;border-radius:999px">🌐 Dil</button>
+      <button class="ghost-btn small settings-tab" data-s="server" style="flex:1;justify-content:center;border-radius:999px">Sunucu</button>
     </div>
-    <div style="display:flex;gap:8px">
-      <button id="apiTestBtn" class="ghost-btn" style="flex:1;justify-content:center">Test Et</button>
-      <button id="apiSaveBtn" class="download-btn" style="flex:1;justify-content:center">Kaydet</button>
+
+    <!-- Genel -->
+    <div id="settings-general" class="settings-pane">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.06)">
+          <div><b style="font-size:13px">🌙 Tema</b><p style="font-size:11px;color:var(--muted)">Koyu / Açık</p></div>
+          <button id="settingsThemeToggle" class="ghost-btn small">Değiştir</button>
+        </div>
+        <div style="padding:12px;border-radius:12px;background:rgba(124,58,237,0.10);border:1px solid rgba(124,58,237,0.18)">
+          <b style="font-size:13px">✨ v1.7.0 • Modern • Hızlı</b>
+          <p style="font-size:11px;color:var(--muted);margin-top:4px">Yeni: Shorts, Kanal, Yorum, İndirilenler, Çoklu dil</p>
+        </div>
+      </div>
     </div>
-    <p id="apiTestResult" style="font-size:12px;margin-top:10px;min-height:16px;color:var(--muted)"></p>
-    <div style="display:flex;gap:8px;margin-top:10px">
-      <button id="apiUseLocalBtn" class="ghost-btn small" style="flex:1">Yerel (PC) → /api</button>
-      <button id="apiClearBtn" class="ghost-btn small" style="flex:1">Sıfırla</button>
+
+    <!-- Dil -->
+    <div id="settings-language" class="settings-pane hidden">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px" data-i18n="lang_desc">Arayüz dilini seç. Değişiklik anında uygulanır.</p>
+      <div id="langGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="ghost-btn lang-btn active" data-lang="tr" style="justify-content:center;gap:8px">🇹🇷 Türkçe</button>
+        <button class="ghost-btn lang-btn" data-lang="en" style="justify-content:center;gap:8px">🇬🇧 English</button>
+        <button class="ghost-btn lang-btn" data-lang="de" style="justify-content:center;gap:8px">🇩🇪 Deutsch</button>
+        <button class="ghost-btn lang-btn" data-lang="ar" style="justify-content:center;gap:8px">🇸🇦 العربية</button>
+        <button class="ghost-btn lang-btn" data-lang="ru" style="justify-content:center;gap:8px">🇷🇺 Русский</button>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:10px">RTL: Arapça seçince arayüz sağdan sola geçer.</p>
     </div>
-    <p style="font-size:11px;color:var(--muted);margin-top:10px">İpucu: PC'de <code>ipconfig</code> (Windows) ile IPv4 adresini bul. Örn: <code>http://192.168.1.15:8000</code>. Emülatör için <code>http://10.0.2.2:8000</code></p>
+
+    <!-- Sunucu -->
+    <div id="settings-server" class="settings-pane hidden">
+      <p style="font-size:12px;color:var(--muted);line-height:1.5"><b>Sunucu gerekli değil</b> — MP4/M4A/MP3 doğrudan cihaza iner. Yalnızca 1080p+ için <code>python server/app.py</code> IP gir.</p>
+      <div style="margin:12px 0;display:flex;gap:8px;align-items:center">
+        <span style="font-size:12px;opacity:0.7">API URL</span>
+        <input id="apiBaseInput" type="url" placeholder="http://192.168.1.100:8000" style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid rgba(128,128,128,0.2);background:var(--glass);color:var(--text);font-size:13px">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button id="apiTestBtn" class="ghost-btn" style="flex:1;justify-content:center">Test Et</button>
+        <button id="apiSaveBtn" class="download-btn" style="flex:1;justify-content:center">Kaydet</button>
+      </div>
+      <p id="apiTestResult" style="font-size:12px;margin-top:10px;min-height:16px;color:var(--muted)"></p>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button id="apiUseLocalBtn" class="ghost-btn small" style="flex:1">Yerel → /api</button>
+        <button id="apiClearBtn" class="ghost-btn small" style="flex:1">Sıfırla</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -314,7 +471,7 @@
         <div style="flex:1">
           <h3 style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.02em">İndir Gitsin</h3>
           <p style="font-size:12px;opacity:0.9;margin-top:2px">YouTube & YouTube Music • Hızlı • Ücretsiz</p>
-          <div class="about-version-badge">✦ v1.6.1 • 2026 • MIT</div>
+          <div class="about-version-badge">✦ v1.7.0 • 2026 • MIT</div>
         </div>
         <button id="aboutClose" class="icon-btn" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.2);color:white">✕</button>
       </div>

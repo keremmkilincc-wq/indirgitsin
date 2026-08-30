@@ -25,6 +25,26 @@ const progressTitle = $('#progressTitle');
 let currentInfo = null;
 let activeFilter = 'all';
 
+// --- i18n Çoklu Dil ---
+const I18N = {
+  tr: {nav_download:'İndir', nav_watch:'İzle', nav_files:'Dosyalar', nav_history:'Geçmiş', nav_about:'Hakkında', settings_title:'Ayarlar', lang_desc:'Arayüz dilini seç. Değişiklik anında uygulanır.', files_count:'Dosya'},
+  en: {nav_download:'Download', nav_watch:'Watch', nav_files:'Files', nav_history:'History', nav_about:'About', settings_title:'Settings', lang_desc:'Choose interface language.', files_count:'Files'},
+  de: {nav_download:'Download', nav_watch:'Ansehen', nav_files:'Dateien', nav_history:'Verlauf', nav_about:'Über', settings_title:'Einstellungen', lang_desc:'Sprache wählen.', files_count:'Dateien'},
+  ar: {nav_download:'تحميل', nav_watch:'مشاهدة', nav_files:'الملفات', nav_history:'السجل', nav_about:'حول', settings_title:'الإعدادات', lang_desc:'اختر لغة الواجهة.', files_count:'ملفات'},
+  ru: {nav_download:'Скачать', nav_watch:'Смотреть', nav_files:'Файлы', nav_history:'История', nav_about:'О нас', settings_title:'Настройки', lang_desc:'Выберите язык.', files_count:'Файлов'}
+};
+const LANG_KEY='indir_gitsin_lang';
+function getLang(){ return localStorage.getItem(LANG_KEY) || 'tr'; }
+function t(k){ const l=getLang(); return (I18N[l]&&I18N[l][k]) || (I18N.tr[k]||k); }
+function applyLang(l){
+  localStorage.setItem(LANG_KEY, l);
+  document.documentElement.lang=l;
+  document.body.dir=(l==='ar'?'rtl':'ltr');
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ const k=el.dataset.i18n; if(I18N[l]&&I18N[l][k]) el.textContent=I18N[l][k]; });
+  document.querySelectorAll('.lang-btn').forEach(b=> b.classList.toggle('active', b.dataset.lang===l));
+}
+setTimeout(()=> applyLang(getLang()), 50);
+
 // --- helpers ---
 function showStatus(msg, type='info'){
   statusBox.textContent = msg;
@@ -1119,11 +1139,13 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>{
 }));
 $('#clearHistory').addEventListener('click', ()=>{ localStorage.removeItem('indir_gitsin_history'); renderHistory(); });
 $('#cancelDl').addEventListener('click', ()=> progressModal.classList.add('hidden'));
-// Sekmeli navigasyon - İndir / İzle / Geçmiş / Hakkında
+// Sekmeli navigasyon - İndir / İzle / Shorts / İndirilenler / Geçmiş / Hakkında
 (function(){
   const tabs = {
     indir: $('#tab-indir'),
     izle: $('#tab-izle'),
+    shorts: $('#tab-shorts'),
+    indirilenler: $('#tab-indirilenler'),
     gecmis: $('#tab-gecmis'),
     hakkinda: $('#tab-hakkinda')
   };
@@ -1139,6 +1161,9 @@ $('#cancelDl').addEventListener('click', ()=> progressModal.classList.add('hidde
     });
     window.scrollTo({top:0, behavior:'smooth'});
     if(name==='gecmis') renderHistory();
+    if(name==='indirilenler' && window.renderFiles) window.renderFiles();
+    if(name==='shorts' && window.initShorts) window.initShorts();
+    if(name==='izle' && window.initIzle) window.initIzle();
   };
   navBtns.forEach(b=>{
     b.addEventListener('click', ()=> switchTab(b.dataset.tab));
@@ -1348,7 +1373,7 @@ window.handleSharedText = handleSharedText;
 })();
 
 // --- Otomatik Güncelleme (GitHub Releases) ---
-const APP_VERSION = '1.6.1';
+const APP_VERSION = '1.7.0';
 const GITHUB_REPO = 'keremmkilincc-wq/indirgitsin';
 const UPDATE_CHECK_KEY = 'indir_gitsin_update_dismiss';
 const UPDATE_LAST_CHECK = 'indir_gitsin_last_check';
@@ -1787,20 +1812,383 @@ window.addEventListener('focus', ()=> checkForUpdate(false));
   });
   izleLoadMore.addEventListener('click', ()=> doIzleSearch(izleCurrentQuery, true));
 
-  // Tab açıldığında otomatik trend yükle
+  // lazy init
   let izleLoaded=false;
-  const origSwitch = window.switchTab;
-  window.switchTab = function(name){
-    if(origSwitch) origSwitch(name);
-    // also handle izle lazy load
-    if(name==='izle' && !izleLoaded){
-      izleLoaded=true;
-      doIzleSearch('trend');
-    }
+  window.initIzle = function(){
+    if(!izleLoaded){ izleLoaded=true; doIzleSearch('trend'); }
   };
   // expose
   window.doIzleSearch = doIzleSearch;
   window.playIzleVideo = playIzleVideo;
+})();
+
+// === Shorts Sekmesi (dikey) ===
+(function(){
+  const inp=$('#shortsSearchInput'), btn=$('#shortsSearchBtn'), clr=$('#shortsClearBtn'), spin=$('#shortsSearchSpinner'), txt=$('#shortsSearchText'), grid=$('#shortsGrid'), status=$('#shortsStatusBox'), countEl=$('#shortsCount'), empty=$('#shortsEmpty'), more=$('#shortsLoadMore');
+  const playerWrap=$('#shortsPlayerWrap'), video=$('#shortsVideo'), placeholder=$('#shortsPlaceholder'), spinner=$('#shortsSpinner'), titleEl=$('#shortsTitle'), chanEl=$('#shortsChannel');
+  if(!inp || !grid) return;
+  let next=null, query='shorts', cache={};
+  function showStatus(m,t='info'){ if(!status) return; status.textContent=m; status.className='status '+t; status.classList.remove('hidden');}
+  function hideStatus(){ status && status.classList.add('hidden');}
+  function setLoad(v){ if(btn) btn.disabled=v; if(txt) txt.textContent=v?'Aranıyor...':'Ara'; if(spin) spin.classList.toggle('hidden',!v);}
+  async function searchShorts(q){
+    // piped search with filter shorts not exists, so search "q shorts" and filter short duration
+    const res = await (async()=>{
+      try{ const r=await pipedSearch(q.includes('shorts')? q : q+' shorts'); return r; }catch{ return await innertubeSearch(q); }
+    })();
+    // filter shorts: duration < 61 sec or title contains shorts or isShort
+    let items=(res.items||[]).filter(it=>{
+      const d=it.duration||0;
+      const isShort = (typeof d==='number' && d>0 && d<=60) || (it.title && /shorts/i.test(it.title)) || it.isShort;
+      return true; // keep all but badge short
+    });
+    // if all, just return as shorts styled
+    return {items, nextpage: res.nextpage||null};
+  }
+  // reuse pipedSearch/innertubeSearch from izle scope? define locally
+  async function pipedSearch(q){
+    for(const host of PIPED_HOSTS_IZLE){
+      try{ const r=await fetchWithTimeout(`${host}/search?q=${encodeURIComponent(q)}&filter=videos`,{},6000); if(!r.ok) continue; const j=await r.json(); if(j.items&&j.items.length) return {items:j.items, nextpage:j.nextpage}; }catch{}
+    }
+    throw new Error('piped shorts fail');
+  }
+  async function innertubeSearch(q){
+    const key='AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
+    const url=`https://www.youtube.com/youtubei/v1/search?key=${key}`;
+    const body={context:{client:{clientName:'WEB', clientVersion:'2.20250101.00.00', hl:'tr', gl:'TR'}}, query:q, params:'EgIQAQ=='};
+    let r; try{ r=await nativeFetch(url,{method:'POST',headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});}catch{ r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});}
+    if(!r.ok) throw new Error('innertube shorts fail');
+    const j=await r.json();
+    const contents=j.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents||[];
+    let vids=[];
+    for(const sec of contents){
+      for(const it of (sec.itemSectionRenderer?.contents||[])){
+        const vr=it.videoRenderer||it.reelItemRenderer; if(!vr) continue;
+        const vid=vr.videoId; if(!vid) continue;
+        vids.push({type:'stream', title:vr.title?.runs?.[0]?.text||'Shorts', url:`/watch?v=${vid}`, thumbnail:vr.thumbnail?.thumbnails?.slice(-1)[0]?.url||`https://img.youtube.com/vi/${vid}/hqdefault.jpg`, uploaderName:vr.ownerText?.runs?.[0]?.text||'', duration:0, isShort:true});
+      }
+    }
+    return {items:vids};
+  }
+  const PIPED_HOSTS_IZLE = ['https://pipedapi.kavin.rocks','https://pipedapi.adminforge.de','https://api.piped.projectsegfau.lt','https://pipedapi.mha.fi','https://pipedapi.r4fo.com'];
+  function render(list, append=false){
+    if(!append) grid.innerHTML='';
+    if(!list.length){ if(!append) empty.classList.remove('hidden'); countEl.textContent='0'; return; }
+    empty.classList.add('hidden');
+    list.forEach(it=>{
+      const vid = it.videoId || extractId(it.url||'') || (it.url?.match(/v=([^&]+)/)?.[1])||'';
+      if(!vid) return;
+      const url=`https://www.youtube.com/watch?v=${vid}`;
+      const thumb=it.thumbnail||`https://img.youtube.com/vi/${vid}/hqdefault.jpg`;
+      const title=it.title||'Shorts';
+      const chan=it.uploaderName||it.uploader||'';
+      const card=document.createElement('div'); card.className='shorts-card';
+      card.innerHTML=`<div class="shorts-thumb"><img src="${thumb}" loading="lazy" onerror="this.src='https://img.youtube.com/vi/${vid}/hqdefault.jpg'"><span class="shorts-badge">⚡ Shorts</span><div class="shorts-play"><span>▶</span></div></div><div class="shorts-info"><b title="${title.replace(/"/g,'&quot;')}">${title}</b><p>${chan}</p></div>`;
+      card.addEventListener('click',()=> playShort(vid,title,chan,url));
+      grid.appendChild(card);
+    });
+    countEl.textContent=`${grid.children.length} shorts`;
+    if(next) more.classList.remove('hidden'); else more.classList.add('hidden');
+  }
+  async function playShort(vid,title,chan,url){
+    playerWrap.classList.remove('hidden');
+    titleEl.textContent=title; chanEl.textContent=chan;
+    placeholder.style.display='block'; placeholder.textContent='Yükleniyor...';
+    spinner.style.display='block'; video.style.display='none'; video.pause();
+    playerWrap.scrollIntoView({behavior:'smooth'});
+    try{
+      const info=await fetchInfo(url);
+      const fmt=info.formats.find(f=> f.type==='video'&&f.url)||info.formats.find(f=>f.url);
+      if(!fmt||!fmt.url){ placeholder.innerHTML=`<a href="${url}" target="_blank" style="color:#FF0033">YouTube'da aç</a>`; spinner.style.display='none'; return; }
+      video.src=fmt.url; video.style.display='block'; placeholder.style.display='none'; spinner.style.display='none'; video.play().catch(()=>{});
+      $('#shortsDownloadBtn').onclick=()=> startDownload(info, fmt, $('#shortsDownloadBtn'));
+      $('#shortsShareBtn').onclick=async()=>{ try{ await navigator.clipboard.writeText(url); showStatus('Link kopyalandı','success'); }catch{} };
+    }catch(e){ spinner.style.display='none'; placeholder.textContent='Hata: '+(e.message||e); }
+  }
+  async function doSearch(q, append=false){
+    if(!append){ next=null; grid.innerHTML=''; hideStatus(); }
+    setLoad(true);
+    try{
+      const res=await searchShorts(q);
+      next=res.nextpage||null;
+      render(res.items, append);
+    }catch(e){ showStatus('Shorts araması başarısız: '+(e.message||e),'error'); }
+    finally{ setLoad(false); }
+  }
+  btn.addEventListener('click',()=> doSearch(inp.value.trim()||'shorts'));
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') doSearch(inp.value.trim()||'shorts'); });
+  inp.addEventListener('input',()=> clr.classList.toggle('hidden', !inp.value.trim()));
+  clr.addEventListener('click',()=>{ inp.value=''; clr.classList.add('hidden'); inp.focus(); });
+  document.querySelectorAll('.shorts-chip').forEach(c=> c.addEventListener('click',()=>{
+    document.querySelectorAll('.shorts-chip').forEach(x=>x.classList.remove('active')); c.classList.add('active');
+    const q=c.dataset.q; inp.value=q==='shorts'?'':q; doSearch(q);
+  }));
+  more.addEventListener('click',()=> doSearch(query,true));
+  $('#shortsClose')?.addEventListener('click',()=>{ playerWrap.classList.add('hidden'); video.pause(); });
+  window.initShorts=function(){ if(grid.children.length===0) doSearch('shorts'); };
+  window.doShortsSearch=doSearch;
+})();
+
+// === İndirilenler (Dosya Yöneticisi) ===
+(function(){
+  const listEl=$('#filesList'), emptyEl=$('#filesEmpty'), totalEl=$('#filesTotal'), vidEl=$('#filesVideo'), audEl=$('#filesAudio'), statusBox=$('#filesStatusBox'), navCount=$('#navFilesCount');
+  if(!listEl) return;
+  let filter='all';
+  function showStatus(m,t='info'){ if(!statusBox) return; statusBox.textContent=m; statusBox.className='status '+t; statusBox.classList.remove('hidden'); if(t==='success') setTimeout(()=>statusBox.classList.add('hidden'),2500); }
+  async function listNativeFiles(){
+    try{
+      const FS=window.Capacitor?.Plugins?.Filesystem;
+      if(!FS || !FS.readdir) return [];
+      const Dir=FS.Directory||{};
+      const dirs=[Dir.ExternalStorage, Dir.Documents, Dir.Data].filter(Boolean);
+      let files=[];
+      for(const d of dirs){
+        try{
+          const res=await FS.readdir({path:'Download/IndirGitsin', directory:d});
+          if(res.files) files = files.concat(res.files.map(f=> ({name:typeof f==='string'?f:f.name, dir:d})));
+        }catch{}
+      }
+      return files;
+    }catch{ return []; }
+  }
+  function renderFiles(){
+    const h=loadHistory().filter(it=> it.format && it.format!=='Görüntülendi');
+    // stats
+    const vids=h.filter(x=> /mp4|video/i.test(x.format)).length;
+    const auds=h.filter(x=> /mp3|m4a|ses|audio/i.test(x.format)).length;
+    totalEl.textContent=h.length; vidEl.textContent=vids; audEl.textContent=auds;
+    if(navCount){ if(h.length>0){ navCount.textContent=h.length; navCount.classList.remove('hidden'); } else navCount.classList.add('hidden'); }
+    let filtered=h;
+    if(filter==='video') filtered=h.filter(x=> /mp4|video/i.test(x.format));
+    if(filter==='audio') filtered=h.filter(x=> /mp3|m4a|ses|audio/i.test(x.format));
+    if(filtered.length===0){ listEl.innerHTML=''; emptyEl.classList.remove('hidden'); if(filter!=='all') emptyEl.querySelector('b').textContent='Bu filtrede dosya yok'; return; }
+    emptyEl.classList.add('hidden');
+    listEl.innerHTML='';
+    filtered.forEach((item, idx)=>{
+      const isAudio=/mp3|m4a|ses|audio/i.test(item.format);
+      const div=document.createElement('div'); div.className='file-item';
+      div.innerHTML=`<img src="${item.thumb}" loading="lazy" onerror="this.src='assets/icon.svg'"><div class="file-main"><b title="${(item.title||'').replace(/"/g,'&quot;')}">${item.title||'Bilinmeyen'}</b><div class="file-meta"><span class="file-badge ${isAudio?'audio':''}">${item.format||''}</span><span>${formatHistoryDate(item.date)}</span><span style="opacity:0.7">${item.url.slice(0,28)}...</span></div></div><div class="file-actions"><button class="icon-btn file-play" title="Oynat">▶</button><button class="icon-btn file-share" title="Paylaş">↗</button><button class="icon-btn file-delete" title="Sil" style="color:#ff6b8a">✕</button></div>`;
+      div.addEventListener('click',()=>{ urlInput.value=item.url; urlInput.dispatchEvent(new Event('input')); if(window.switchTab) window.switchTab('indir'); handleAnalyze(); });
+      div.querySelector('.file-play').addEventListener('click',e=>{ e.stopPropagation(); openHistoryPlayer(item); });
+      div.querySelector('.file-share').addEventListener('click',async e=>{ e.stopPropagation(); try{ if(navigator.share) await navigator.share({title:item.title, url:item.url}); else await navigator.clipboard.writeText(item.url); showStatus('Paylaşıldı / kopyalandı','success'); }catch{} });
+      div.querySelector('.file-delete').addEventListener('click',e=>{
+        e.stopPropagation();
+        const nh=loadHistory(); const realIdx=nh.findIndex(x=> x.url===item.url && x.title===item.title);
+        if(realIdx!==-1){ nh.splice(realIdx,1); saveHistory(nh); renderFiles(); renderHistory(); showStatus('Silindi','info'); }
+      });
+      listEl.appendChild(div);
+    });
+  }
+  document.querySelectorAll('.files-filter').forEach(b=> b.addEventListener('click',()=>{
+    document.querySelectorAll('.files-filter').forEach(x=>x.classList.remove('active')); b.classList.add('active'); filter=b.dataset.f; renderFiles();
+  }));
+  $('#filesRefresh')?.addEventListener('click',()=>{ renderFiles(); showStatus('Yenilendi','success'); });
+  $('#filesOpenFolder')?.addEventListener('click',async()=>{
+    try{
+      const FS=window.Capacitor?.Plugins?.Filesystem;
+      if(FS && window.Capacitor?.Plugins?.Browser){
+        await window.Capacitor.Plugins.Browser.open({url:'file:///storage/emulated/0/Download/IndirGitsin'});
+      } else {
+        showStatus('Klasör: İndirilenler/IndirGitsin (Dosya Yöneticisinden aç)','info');
+      }
+    }catch{ showStatus('Klasör: İndirilenler/IndirGitsin','info'); }
+  });
+  $('#filesClearAll')?.addEventListener('click',()=>{
+    if(confirm('Tüm indirilen geçmişi silinsin mi? (Dosyalar cihazda kalır)')){ const nh=loadHistory().filter(x=> x.format==='Görüntülendi'); saveHistory(nh); renderFiles(); renderHistory(); showStatus('Temizlendi','info'); }
+  });
+  window.renderFiles=renderFiles;
+})();
+
+// === Kanal / Yorum / Abone (İzle player) ===
+(function(){
+  const chanCard=$('#izleChannelCard'), avatar=$('#izleChannelAvatar'), nameEl=$('#izleChannelName'), subsEl=$('#izleChannelSubs'), descEl=$('#izleChannelDesc'), likesEl=$('#izleLikes'), viewsEl=$('#izleViews'), dateEl=$('#izleDate'), subBtn=$('#izleSubscribeBtn');
+  const commentsCard=$('#izleCommentsCard'), commentsList=$('#izleCommentsList'), commentsCount=$('#izleCommentsCount'), commentsMore=$('#izleCommentsMore');
+  const relatedCard=$('#izleRelatedCard'), relatedList=$('#izleRelatedList');
+  if(!chanCard) return;
+  const SUB_KEY='indir_gitsin_subs';
+  function getSubs(){ try{ return JSON.parse(localStorage.getItem(SUB_KEY)||'[]'); }catch{ return []; } }
+  function isSub(id){ return getSubs().includes(id); }
+  function toggleSub(id, name){
+    let arr=getSubs();
+    if(arr.includes(id)) arr=arr.filter(x=>x!==id);
+    else arr.push(id);
+    localStorage.setItem(SUB_KEY, JSON.stringify(arr));
+    updateSubBtn(id);
+    return arr.includes(id);
+  }
+  function updateSubBtn(id){
+    if(!subBtn || !id) return;
+    const sub=isSub(id);
+    subBtn.textContent=sub?'✓ Abone':'Abone Ol';
+    subBtn.classList.toggle('subscribed', sub);
+    subBtn.style.background=sub?'rgba(255,255,255,0.12)':'';
+  }
+  async function fetchChannel(channelId){
+    for(const host of ['https://pipedapi.kavin.rocks','https://pipedapi.adminforge.de','https://api.piped.projectsegfau.lt']){
+      try{
+        const r=await fetchWithTimeout(`${host}/channel/${channelId}`,{},6000);
+        if(!r.ok) continue;
+        const j=await r.json();
+        if(j.name) return j;
+      }catch{}
+    }
+    return null;
+  }
+  async function fetchComments(videoId, next=''){
+    for(const host of ['https://pipedapi.kavin.rocks','https://pipedapi.adminforge.de']){
+      try{
+        const url = next ? `${host}/nextpage/comments/${videoId}?nextpage=${encodeURIComponent(next)}` : `${host}/comments/${videoId}`;
+        const r=await fetchWithTimeout(url,{},7000);
+        if(!r.ok) continue;
+        const j=await r.json();
+        if(j.comments) return j;
+        if(Array.isArray(j) && j.length) return {comments:j, nextpage: j.nextpage||null};
+      }catch{}
+    }
+    return {comments:[], nextpage:null};
+  }
+  async function loadVideoExtras(videoId, channelIdFromInfo){
+    // channel
+    chanCard.classList.remove('hidden');
+    commentsCard.classList.remove('hidden');
+    relatedCard.classList.remove('hidden');
+    // try fetch channel
+    let channelId = channelIdFromInfo || '';
+    // channelId may be like UC... extract from info if needed
+    if(channelId){
+      fetchChannel(channelId).then(ch=>{
+        if(!ch) return;
+        if(ch.avatarUrl){ avatar.src=ch.avatarUrl; avatar.style.display='block'; }
+        nameEl.textContent=ch.name||nameEl.textContent;
+        subsEl.textContent= ch.subscriberCount ? (typeof ch.subscriberCount==='number'? ch.subscriberCount.toLocaleString('tr-TR') : ch.subscriberCount)+' abone' : (ch.subscribers?' aboneler':'');
+        descEl.textContent=ch.description||'';
+        updateSubBtn(ch.id||channelId);
+        subBtn.onclick=()=>{
+          const nowSub=toggleSub(ch.id||channelId, ch.name);
+          // toast
+          const msg=nowSub?'Abone olundu ✓':'Abonelik kaldırıldı';
+          // use izle status
+          const s=$('#izleStatusBox'); if(s){ s.textContent=msg; s.className='status success'; s.classList.remove('hidden'); setTimeout(()=>s.classList.add('hidden'),2000); }
+        };
+        $('#izleChannelOpen').onclick=()=> window.open(`https://www.youtube.com/channel/${ch.id||channelId}`, '_blank');
+      }).catch(()=>{});
+    }
+    // comments
+    commentsList.innerHTML='<div style="text-align:center;padding:12px;color:var(--muted)">Yorumlar yükleniyor...</div>';
+    try{
+      const c=await fetchComments(videoId);
+      renderComments(c.comments||[], c.nextpage||null);
+    }catch{ commentsList.innerHTML='<div style="text-align:center;color:var(--muted)">Yorumlar alınamadı</div>'; }
+  }
+  let commentNext=null;
+  function renderComments(comments, next){
+    commentNext=next;
+    if(!comments.length){ commentsList.innerHTML='<div class="history-empty" style="padding:16px"><p>Yorum yok</p></div>'; commentsCount.textContent=''; commentsMore.classList.add('hidden'); return; }
+    commentsList.innerHTML='';
+    commentsCount.textContent=`${comments.length}`;
+    comments.forEach(cm=>{
+      const author=cm.author||cm.commentor||'Anonim';
+      const text=cm.commentText||cm.content||cm.text||'';
+      const thumb=cm.thumbnail||cm.authorThumbnails?.slice(-1)[0]?.url||'';
+      const likes=cm.likeCount||cm.likes||0;
+      const div=document.createElement('div'); div.className='comment';
+      div.innerHTML=`<img src="${thumb}" onerror="this.style.display='none'"><div style="flex:1;min-width:0"><div style="display:flex;gap:6px;align-items:center"><b>${author}</b><span style="font-size:10px;color:var(--muted)">${cm.commentedTime||cm.publishedTime||''}</span></div><p>${text.replace(/</g,'&lt;')}</p><div class="comment-meta"><span class="comment-like">👍 ${typeof likes==='number'? likes.toLocaleString('tr-TR'):likes}</span></div></div>`;
+      commentsList.appendChild(div);
+    });
+    if(commentNext) commentsMore.classList.remove('hidden'); else commentsMore.classList.add('hidden');
+  }
+  commentsMore?.addEventListener('click', async()=>{
+    // load next page for last video
+    const vid=commentsMore.dataset.vid;
+    if(!vid || !commentNext) return;
+    commentsMore.textContent='Yükleniyor...';
+    try{
+      const c=await fetchComments(vid, commentNext);
+      const existing = commentsList.children.length;
+      // append
+      (c.comments||[]).forEach(cm=>{
+        const author=cm.author||'Anonim'; const text=cm.commentText||cm.content||''; const thumb=cm.thumbnail||''; const likes=cm.likeCount||0;
+        const div=document.createElement('div'); div.className='comment';
+        div.innerHTML=`<img src="${thumb}" onerror="this.style.display='none'"><div style="flex:1;min-width:0"><b>${author}</b><p>${text.replace(/</g,'&lt;')}</p><div class="comment-meta"><span class="comment-like">👍 ${likes}</span></div></div>`;
+        commentsList.appendChild(div);
+      });
+      commentNext=c.nextpage||null;
+      if(!commentNext) commentsMore.classList.add('hidden');
+      commentsMore.textContent='Daha fazla yorum';
+    }catch{ commentsMore.textContent='Hata'; }
+  });
+  $('#izleCommentsToggle')?.addEventListener('click',()=>{
+    const hidden=commentsList.classList.toggle('hidden');
+    commentsMore.classList.toggle('hidden', hidden);
+    $('#izleCommentsToggle').textContent=hidden?'Göster':'Gizle';
+  });
+  // expose to playIzleVideo
+  const origPlay=window.playIzleVideo;
+  window.playIzleVideo = async function(n){
+    if(origPlay) await origPlay(n);
+    // extras
+    const vid=n.vid || extractId(n.url)||'';
+    // try get channelId from fetchInfo
+    try{
+      const info=await fetchInfo(n.url);
+      if(relatedList){
+        relatedList.innerHTML='';
+        relatedCard.classList.remove('hidden');
+        // use relatedStreams from piped? fetch related via piped /streams/vid
+        try{
+          for(const host of ['https://pipedapi.kavin.rocks','https://pipedapi.adminforge.de']){
+            const r=await fetchWithTimeout(`${host}/streams/${vid}`,{},5000);
+            if(!r.ok) continue;
+            const j=await r.json();
+            const rel=j.relatedStreams||[];
+            rel.slice(0,6).forEach(it=>{
+              const v = it.url?.match(/v=([^&]+)/)?.[1]||it.videoId||'';
+              if(!v) return;
+              const card=document.createElement('div'); card.className='izle-card'; card.style.flexDirection='row'; card.style.display='flex';
+              card.innerHTML=`<div style="width:120px;height:68px;flex-shrink:0;position:relative;overflow:hidden;border-radius:10px;background:#111"><img src="${it.thumbnail}" style="width:100%;height:100%;object-fit:cover"><span style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.8);color:white;font-size:10px;padding:2px 5px;border-radius:5px">${it.duration? formatDuration(it.duration):''}</span></div><div style="flex:1;padding:8px;min-width:0"><b style="font-size:11px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${it.title}</b><p style="font-size:10px;color:var(--muted)">${it.uploaderName||''}</p></div>`;
+              card.addEventListener('click',()=> window.playIzleVideo({vid:v, url:`https://www.youtube.com/watch?v=${v}`, title:it.title, channel:it.uploaderName, thumb:it.thumbnail}));
+              relatedList.appendChild(card);
+            }
+            if(rel.length) break;
+          }
+        }catch{}
+      }
+      // channel/comments
+      let channelId='';
+      // try extract channelId from piped streams
+      try{
+        for(const host of ['https://pipedapi.kavin.rocks']){
+          const r=await fetchWithTimeout(`${host}/streams/${vid}`,{},5000);
+          if(r.ok){ const j=await r.json(); channelId=j.uploaderUrl?.split('/channel/')[1]?.split('/')[0]||j.uploaderId||''; if(channelId) break; }
+        }
+      }catch{}
+      if(info.channel) nameEl.textContent=info.channel;
+      viewsEl.textContent= info.views? `👁 ${info.views}` : '';
+      likesEl.textContent='';
+      dateEl.textContent='';
+      avatar.style.display='none';
+      descEl.textContent='';
+      commentsMore.dataset.vid=vid;
+      loadVideoExtras(vid, channelId);
+    }catch{}
+  };
+})();
+
+// === Ayarlar Dil + Tab ===
+(function(){
+  const modal=$('#settingsModal');
+  document.querySelectorAll('.settings-tab').forEach(t=> t.addEventListener('click',()=>{
+    document.querySelectorAll('.settings-tab').forEach(x=>x.classList.remove('active')); t.classList.add('active');
+    document.querySelectorAll('.settings-pane').forEach(p=> p.classList.add('hidden'));
+    const pane=$('#settings-'+t.dataset.s); if(pane) pane.classList.remove('hidden');
+  }));
+  document.querySelectorAll('.lang-btn').forEach(b=> b.addEventListener('click',()=>{
+    const l=b.dataset.lang; applyLang(l);
+    document.querySelectorAll('.lang-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+  }));
+  // init lang buttons
+  applyLang(getLang());
+  $('#settingsThemeToggle')?.addEventListener('click',()=> $('#themeToggle')?.click());
 })();
 
 // Auto paste on load if clipboard contains youtube link (mobile UX)
