@@ -339,6 +339,19 @@ body.light .header{background:rgba(255,255,255,0.78);border-color:rgba(15,23,42,
 .shimmer{position:relative;overflow:hidden}
 .shimmer::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);transform:translateX(-100%);animation:shimmer 2s infinite}
 @keyframes shimmer{100%{transform:translateX(100%)}}
+/* === Dil Kayması Fix (kararlılık) === */
+html{scrollbar-gutter:stable}
+body{overflow-x:hidden}
+.bottom-nav{left:50%;transform:translateX(-50%);right:auto;direction:ltr!important;unicode-bidi:isolate;will-change:transform;contain:layout}
+.bottom-nav .nav-item{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;justify-content:center}
+.bottom-nav .nav-item span[data-i18n]{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.header{direction:ltr!important;contain:layout}
+.hero-title{min-height:1.1em}
+.hero-sub{min-height:1.4em}
 body[dir="rtl"]{direction:rtl}
-body[dir="rtl"] .header-actions{flex-direction:row-reverse}
-body[dir="rtl"] .input-wrapper{flex-direction:row-reverse}
+body[dir="rtl"] .container, body[dir="rtl"] .hero-card, body[dir="rtl"] .glass{ direction:rtl; text-align:right; }
+body[dir="rtl"] .header, body[dir="rtl"] .bottom-nav{ direction:ltr!important; text-align:left; }
+body[dir="rtl"] .bottom-nav{ left:50%; transform:translateX(-50%); }
+@media(max-width:700px){
+  body[dir="rtl"] .bottom-nav{ left:12px; right:12px; transform:none; }
+}
