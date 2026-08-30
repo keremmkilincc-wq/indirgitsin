@@ -2148,7 +2148,7 @@ window.addEventListener('focus', ()=> checkForUpdate(false));
               card.innerHTML=`<div style="width:120px;height:68px;flex-shrink:0;position:relative;overflow:hidden;border-radius:10px;background:#111"><img src="${it.thumbnail}" style="width:100%;height:100%;object-fit:cover"><span style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.8);color:white;font-size:10px;padding:2px 5px;border-radius:5px">${it.duration? formatDuration(it.duration):''}</span></div><div style="flex:1;padding:8px;min-width:0"><b style="font-size:11px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${it.title}</b><p style="font-size:10px;color:var(--muted)">${it.uploaderName||''}</p></div>`;
               card.addEventListener('click',()=> window.playIzleVideo({vid:v, url:`https://www.youtube.com/watch?v=${v}`, title:it.title, channel:it.uploaderName, thumb:it.thumbnail}));
               relatedList.appendChild(card);
-            }
+            });
             if(rel.length) break;
           }
         }catch{}
