@@ -97,8 +97,23 @@ async function saveToDownloads(filename, b64){
   return {saved:false, error: lastErr};
 }
 
+// Helper: promise timeout - 88'de takılmayı önlemek için kritik
+function withTimeout(promise, ms, label){
+  let t;
+  const timeout = new Promise((_, rej)=> t=setTimeout(()=> rej(new Error((label||'Timeout')+' ('+ms+'ms)')), ms));
+  return Promise.race([promise, timeout]).finally(()=> clearTimeout(t));
+}
+
 // En güvenilir: Filesystem.downloadFile ile doğrudan URL'den public Download'a çek (CORS bypass)
 async function downloadViaNative(url, filename){
+  // 0) En hızlı ve en güvenilir: Android DownloadManager bridge (takılmaz)
+  try{
+    if(window.Android && window.Android.download){
+      window.Android.download(url, filename);
+      console.log('Android bridge download triggered', filename);
+      return {ok:true, path: filename, dir:'AndroidBridge'};
+    }
+  }catch(e){ console.log('Android bridge fail', e); }
   const FS = window.Capacitor.Plugins.Filesystem;
   if(!FS || !FS.downloadFile) return {ok:false, error:'no downloadFile'};
   const Dir = FS.Directory || {};
@@ -110,18 +125,11 @@ async function downloadViaNative(url, filename){
   let lastErr=null;
   for(const t of tries){
     try{
-      const res = await FS.downloadFile({ url, path: t.path, directory: t.dir, recursive:true });
+      const res = await withTimeout(FS.downloadFile({ url, path: t.path, directory: t.dir, recursive:true }), 9000, 'downloadFile');
       console.log('downloadFile ok', res);
       return {ok:true, path: t.path, dir: t.dir, res};
     }catch(e){ lastErr=e; console.log('downloadFile fail', t, e.message||e); }
   }
-  // Android JS bridge fallback: window.Android.download()
-  try{
-    if(window.Android && window.Android.download){
-      window.Android.download(url, filename);
-      return {ok:true, path: filename, dir:'AndroidBridge'};
-    }
-  }catch(e){ lastErr=e; }
   return {ok:false, error: lastErr};
 }
 
@@ -338,15 +346,44 @@ async function fetchInfoClientSide(url){
   const vid=extractId(url);
   if(!vid) throw new Error('Video ID bulunamadı');
   // 1) Piped
+  let pipedInfo=null;
   try{
     const piped=await fetchViaPiped(vid);
-    return mapPipedToInfo(piped, url, vid);
+    pipedInfo = mapPipedToInfo(piped, url, vid);
+    // Piped bazen ses döndürmez - Innertube ile zenginleştir
+    const hasAudioUrl = pipedInfo.formats.some(f=> f.type==='audio' && f.url && f.url.startsWith('http'));
+    if(!hasAudioUrl){
+      try{
+        const inn=await fetchViaInnertube(vid);
+        const innInfo=mapInnertubeToInfo(inn, url, vid);
+        const innAudio = innInfo.formats.filter(f=> f.type==='audio' && f.url);
+        // piped eksik音频 url'i inn ile doldur
+        pipedInfo.formats = pipedInfo.formats.filter(f=> !(f.type==='audio' && !f.url));
+        innAudio.forEach(a=>{
+          if(!pipedInfo.formats.some(f=> f.url===a.url)) pipedInfo.formats.push(a);
+        });
+        if(!pipedInfo.formats.find(f=>f.id==='mp3')) pipedInfo.formats.push({id:'mp3', label:'MP3 (cihazda dönüştür)', ext:'mp3', quality:'192kbps', type:'audio', size:'', url:''});
+        console.log('Piped audio enrich with Innertube', innAudio.length);
+      }catch(e){ console.log('Piped audio enrich failed', e); }
+    }
+    if(pipedInfo.formats.some(f=> f.url && f.url.startsWith('http'))) return pipedInfo;
   }catch(e){ console.log('Piped failed', e); }
   // 2) Innertube
   try{
     const inn=await fetchViaInnertube(vid);
-    return mapInnertubeToInfo(inn, url, vid);
-  }catch(e){ console.log('Innertube failed', e); throw e; }
+    const innInfo = mapInnertubeToInfo(inn, url, vid);
+    // eğer piped vardı ama url'sizdi, inn tercih et
+    if(pipedInfo && innInfo){
+      // video formatları birleştir
+      const merged = [...innInfo.formats];
+      pipedInfo.formats.forEach(f=>{
+        if(f.url && !merged.some(m=> m.url===f.url)) merged.push(f);
+      });
+      innInfo.formats = merged.slice(0,8);
+      return innInfo;
+    }
+    return innInfo;
+  }catch(e){ console.log('Innertube failed', e); if(pipedInfo) return pipedInfo; throw e; }
 }
 
 async function fetchInfo(url){
@@ -489,13 +526,26 @@ async function startDownload(info, format, btn){
     // 1) Doğrudan CDN - sunucusuz, cihaz doğrudan indirir (öncelikli)
     if(format.url && format.url.startsWith('http')){
       let filename = `${(info.title||'video').replace(/[^\w\- ]/g,'').slice(0,60)}.${format.ext}`;
-      // Native: önce native downloadFile (CORS bypass, en güvenilir), sonra fallback
+      // Native: önce Android bridge (takılmaz), sonra downloadFile, en son anchor/browser
       if(native){
         try{
           progressText.textContent='İndiriliyor (doğrudan)...';
-          // Yöntem 0: Filesystem.downloadFile -> doğrudan public Download (en iyi, CORS yok)
+          // Yöntem 0: Android DownloadManager bridge - en hızlı, 88'de takılma yok
           try{
-            const dl = await downloadViaNative(format.url, filename);
+            if(window.Android && window.Android.download){
+              window.Android.download(format.url, filename);
+              clearInterval(iv);
+              progressFill.style.width='100%'; progressText.textContent='100%';
+              await new Promise(r=>setTimeout(r,400));
+              progressModal.classList.add('hidden');
+              showStatus(`İndirildi ✓ İndirilenler/IndirGitsin/${filename} (bildirim çubuğunu kontrol et)`, 'success');
+              addToHistory(info, format);
+              return;
+            }
+          }catch(e){ console.log('Android bridge fail', e); }
+          // Yöntem 1: Filesystem.downloadFile -> doğrudan public Download (CORS bypass, timeout 9s)
+          try{
+            const dl = await withTimeout(downloadViaNative(format.url, filename), 10000, 'downloadViaNative');
             if(dl.ok){
               clearInterval(iv);
               progressFill.style.width='100%'; progressText.textContent='100%';
@@ -508,33 +558,35 @@ async function startDownload(info, format, btn){
             } else {
               console.log('downloadViaNative failed, fallback fetch', dl.error);
             }
-          }catch(e){ console.log('downloadViaNative error', e); }
-          // Yöntem A: Fetch blob -> Filesystem base64 (fallback) - M4A için de CORS bypass
+          }catch(e){ console.log('downloadViaNative timeout/error', e); }
+          // Yöntem 2: Fetch blob -> Filesystem base64 (timeout 12s) - M4A için CORS bypass
           try{
             let resp;
-            try{ resp = await nativeFetch(format.url); }catch{ resp = await fetch(format.url); }
-            if(resp.ok){
+            try{ resp = await withTimeout(nativeFetch(format.url), 10000, 'nativeFetch'); }catch{ resp = await withTimeout(fetch(format.url), 10000, 'fetch'); }
+            if(resp && resp.ok){
               let blob;
-              try{ blob = await resp.blob(); }catch{ const ab = await resp.arrayBuffer(); blob = new Blob([ab], {type: format.ext==='m4a'?'audio/mp4':'video/mp4'}); }
-              const toBase64 = (b)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=> res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(b); });
-              const b64 = await toBase64(blob);
-              const res = await saveToDownloads(filename, b64);
-              if(res.saved){
-                clearInterval(iv);
-                progressFill.style.width='100%'; progressText.textContent='100%';
-                await new Promise(r=>setTimeout(r,300));
-                progressModal.classList.add('hidden');
-                const loc = res.dir==='CACHE' ? 'uygulama önbelleği' : `İndirilenler/IndirGitsin/${filename}`;
-                showStatus(`İndirildi ✓ Kaydedildi: ${loc}`, 'success');
-                try{ const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); }catch{}
-                addToHistory(info, format);
-                return;
-              } else {
-                console.log('saveToDownloads failed', res.error);
+              try{ blob = await withTimeout(resp.blob(), 8000, 'blob'); }catch{ const ab = await withTimeout(resp.arrayBuffer(), 8000, 'arrayBuffer'); blob = new Blob([ab], {type: format.ext==='m4a'?'audio/mp4':'video/mp4'}); }
+              if(blob && blob.size>0){
+                const toBase64 = (b)=> new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=> res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(b); });
+                const b64 = await withTimeout(toBase64(blob), 8000, 'toBase64');
+                const res = await withTimeout(saveToDownloads(filename, b64), 7000, 'saveToDownloads');
+                if(res.saved){
+                  clearInterval(iv);
+                  progressFill.style.width='100%'; progressText.textContent='100%';
+                  await new Promise(r=>setTimeout(r,300));
+                  progressModal.classList.add('hidden');
+                  const loc = res.dir==='CACHE' ? 'uygulama önbelleği' : `İndirilenler/IndirGitsin/${filename}`;
+                  showStatus(`İndirildi ✓ Kaydedildi: ${loc}`, 'success');
+                  try{ const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); }catch{}
+                  addToHistory(info, format);
+                  return;
+                } else {
+                  console.log('saveToDownloads failed', res.error);
+                }
               }
             }
-          }catch(e){ console.log('direct fetch->FS failed', e); }
-          // Yöntem B: DownloadManager via hidden anchor (MainActivity setDownloadListener yakalar)
+          }catch(e){ console.log('direct fetch->FS failed/timeout', e); }
+          // Yöntem 3: Anchor (MainActivity setDownloadListener yakalar) - timeout yok, anında
           try{
             const a=document.createElement('a'); a.href=format.url; a.download=filename; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove();
             clearInterval(iv);
@@ -545,9 +597,9 @@ async function startDownload(info, format, btn){
             addToHistory(info, format);
             return;
           }catch(e2){ console.log('anchor trigger failed', e2); }
-          // Yöntem C: External browser
+          // Yöntem 4: External browser
           try{
-            if(window.Capacitor.Plugins.Browser) await window.Capacitor.Plugins.Browser.open({ url: format.url });
+            if(window.Capacitor.Plugins.Browser) await withTimeout(window.Capacitor.Plugins.Browser.open({ url: format.url }), 5000, 'Browser.open');
             else window.open(format.url, '_blank');
             clearInterval(iv);
             progressFill.style.width='100%'; progressText.textContent='100%';
@@ -609,16 +661,27 @@ async function startDownload(info, format, btn){
           let audioBlob;
           try{
             let resp;
-            try{ resp = await nativeFetch(audioSrc.url); }catch{ resp = await fetch(audioSrc.url); }
+            try{ resp = await withTimeout(nativeFetch(audioSrc.url), 10000, 'nativeFetch audio'); }catch{ resp = await withTimeout(fetch(audioSrc.url), 10000, 'fetch audio'); }
             if(!resp.ok) throw new Error('HTTP '+resp.status);
             // nativeFetch blob() bazen base64 string dönebilir, handle et
-            try{ audioBlob = await resp.blob(); }catch{ const ab = await resp.arrayBuffer(); audioBlob = new Blob([ab]); }
+            try{ audioBlob = await withTimeout(resp.blob(), 8000, 'blob'); }catch{ const ab = await withTimeout(resp.arrayBuffer(), 8000, 'arrayBuffer'); audioBlob = new Blob([ab]); }
             // blob boşsa ve native ise DownloadManager ile dene -> fallback base64
             if(!audioBlob || audioBlob.size===0) throw new Error('Boş ses verisi');
           }catch(fetchErr){
             console.log('audio fetch fail, trying direct download fallback', fetchErr);
-            // Son çare: M4A url ile doğrudan indirmeyi dene (M4A olarak)
-            // Kullanıcıya M4A öner
+            // Son çare: M4A url ile doğrudan indirmeyi dene (anchor/Browser) - 88'de takılma olmasın
+            try{
+              if(window.Android && window.Android.download){
+                const fn = `${(info.title||'audio').replace(/[^\w\- ]/g,'').slice(0,60)}.m4a`;
+                window.Android.download(audioSrc.url, fn);
+                clearInterval(iv);
+                progressFill.style.width='100%'; progressText.textContent='100%';
+                progressModal.classList.add('hidden');
+                showStatus('M4A olarak indiriliyor (MP3 dönüştürülemedi) ✓ İndirilenler/IndirGitsin/'+fn, 'success');
+                addToHistory(info, {label:'M4A (fallback)'});
+                return;
+              }
+            }catch{}
             throw new Error('Ses indirilemedi (CORS/URL süresi dolmuş). M4A butonunu dene: ' + (fetchErr.message||fetchErr));
           }
           progressFill.style.width='45%';
