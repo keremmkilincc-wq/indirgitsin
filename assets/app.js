@@ -25,25 +25,125 @@ const progressTitle = $('#progressTitle');
 let currentInfo = null;
 let activeFilter = 'all';
 
-// --- i18n Çoklu Dil ---
+// --- i18n Çoklu Dil (tam kapsama) ---
 const I18N = {
-  tr: {nav_download:'İndir', nav_watch:'İzle', nav_files:'Dosyalar', nav_history:'Geçmiş', nav_about:'Hakkında', settings_title:'Ayarlar', lang_desc:'Arayüz dilini seç. Değişiklik anında uygulanır.', files_count:'Dosya'},
-  en: {nav_download:'Download', nav_watch:'Watch', nav_files:'Files', nav_history:'History', nav_about:'About', settings_title:'Settings', lang_desc:'Choose interface language.', files_count:'Files'},
-  de: {nav_download:'Download', nav_watch:'Ansehen', nav_files:'Dateien', nav_history:'Verlauf', nav_about:'Über', settings_title:'Einstellungen', lang_desc:'Sprache wählen.', files_count:'Dateien'},
-  ar: {nav_download:'تحميل', nav_watch:'مشاهدة', nav_files:'الملفات', nav_history:'السجل', nav_about:'حول', settings_title:'الإعدادات', lang_desc:'اختر لغة الواجهة.', files_count:'ملفات'},
-  ru: {nav_download:'Скачать', nav_watch:'Смотреть', nav_files:'Файлы', nav_history:'История', nav_about:'О нас', settings_title:'Настройки', lang_desc:'Выберите язык.', files_count:'Файлов'}
+  tr: {
+    nav_download:'İndir', nav_watch:'İzle', nav_files:'İndirilenler', nav_history:'Geçmiş', nav_about:'Hakkında',
+    settings_title:'Ayarlar', lang_desc:'Arayüz dilini seç. Değişiklik anında uygulanır.', files_count:'Dosya',
+    hero_badge:'✨ YouTube • YouTube Music • Shorts • Playlist', hero_title:'Linki yapıştır,', hero_title_grad:'indir gitsin.', hero_sub:'YouTube uygulamasından <b>Paylaş → İndir Gitsin</b> diyerek de indirebilirsin.',
+    placeholder_link:'https://youtube.com/watch?v=... veya https://music.youtube.com/...', btn_paste:'Yapıştır', btn_analyze:'Çözümle', btn_search:'Ara',
+    chip_yt:'Örnek: YouTube', chip_music:'Örnek: Music', chip_short:'Örnek: Shorts', chip_ytu:'Örnek: youtu.be',
+    howto_1:'<b>Linki kopyala</b><br>YouTube veya Music\'ten', howto_2:'<b>Yapıştır</b><br>veya Paylaş → İndir Gitsin', howto_3:'<b>Kalite seç & indir</b><br>MP4 / MP3 / Audio',
+    preview_open:'↗ YouTube\'da aç', preview_play:'▶ Önizle', opt_title:'İndirme Seçenekleri', tab_all:'Tümü', tab_video:'Video', tab_audio:'Ses / MP3',
+    hint_direct:'💡 <b>Doğrudan mod aktif</b> — MP4/M4A/MP3 sunucusuz doğrudan cihaza iner. Dosyalar <code>İndirilenler/IndirGitsin</code> klasörüne kaydedilir.',
+    izle_badge:'▶ Tubular gibi • YouTube\'u burada izle', izle_title:'YouTube\'u', izle_title_grad:'uygulamadan çıkmadan', izle_sub:'Ara, trendleri keşfet, tek tıkla oynat — <b>reklamsız, hızlı</b>.',
+    placeholder_search:'Ara: müzik, komedi, haber, kanal adı...', shorts_badge:'⚡ Shorts • Dikey • Hızlı', shorts_title:'Shorts\'u', shorts_title_grad:'kaydırarak', shorts_sub:'Dikey video akışı — YouTube Shorts\'u uygulama içinde, reklamsız.',
+    files_badge:'📁 İndirilenler • Dosya Yöneticisi', files_title:'İndirdiklerin', files_title_grad:'burada.', files_sub:'Tüm MP4/M4A/MP3\'ler burada listelenir. Oynat, paylaş, sil veya klasörde göster.',
+    files_heading:'📁 İndirilenlerim', files_empty_title:'Henüz dosya yok', files_empty_sub:'İndirdiğin videolar burada görünecek',
+    history_title:'🕘 Geçmiş', history_empty:'Henüz indirme yok', about_badge:'YouTube & Music • Hızlı • Ücretsiz',
+    settings_general:'Genel', settings_lang:'🌐 Dil', settings_server:'Sunucu', theme_title:'🌙 Tema', theme_sub:'Koyu / Açık', btn_change:'Değiştir',
+    btn_refresh:'🔄 Yenile', btn_open_folder:'📂 Klasörü Aç', btn_clear_all:'🗑 Tümünü Temizle',
+    comments_title:'💬 Yorumlar', channel_subscribe:'Abone Ol', channel_subscribed:'✓ Abone',
+  },
+  en: {
+    nav_download:'Download', nav_watch:'Watch', nav_files:'Downloads', nav_history:'History', nav_about:'About',
+    settings_title:'Settings', lang_desc:'Choose interface language. Changes apply instantly.', files_count:'Files',
+    hero_badge:'✨ YouTube • Music • Shorts • Playlist', hero_title:'Paste link,', hero_title_grad:'download it.', hero_sub:'From YouTube app use <b>Share → Indir Gitsin</b>.',
+    placeholder_link:'https://youtube.com/watch?v=...', btn_paste:'Paste', btn_analyze:'Analyze', btn_search:'Search',
+    chip_yt:'Example: YouTube', chip_music:'Example: Music', chip_short:'Example: Shorts', chip_ytu:'Example: youtu.be',
+    howto_1:'<b>Copy link</b><br>from YouTube or Music', howto_2:'<b>Paste</b><br>or Share → App', howto_3:'<b>Choose quality & download</b><br>MP4 / MP3 / Audio',
+    preview_open:'↗ Open on YouTube', preview_play:'▶ Preview', opt_title:'Download Options', tab_all:'All', tab_video:'Video', tab_audio:'Audio / MP3',
+    hint_direct:'💡 <b>Direct mode</b> — MP4/M4A/MP3 directly to device. Files saved to <code>Downloads/IndirGitsin</code>.',
+    izle_badge:'▶ Like Tubular • Watch here', izle_title:'Watch YouTube', izle_title_grad:'without leaving', izle_sub:'Search, discover trends, play in one tap — <b>ad-free, fast</b>.',
+    placeholder_search:'Search: music, comedy, news, channel...', shorts_badge:'⚡ Shorts • Vertical • Fast', shorts_title:'Browse', shorts_title_grad:'Shorts', shorts_sub:'Vertical feed — Shorts inside the app, ad-free.',
+    files_badge:'📁 Downloads • File Manager', files_title:'Your downloads', files_title_grad:'here.', files_sub:'All MP4/M4A/MP3 listed. Play, share, delete or show in folder.',
+    files_heading:'📁 My Downloads', files_empty_title:'No files yet', files_empty_sub:'Downloaded videos will appear here',
+    history_title:'🕘 History', history_empty:'No downloads yet', about_badge:'YouTube & Music • Fast • Free',
+    settings_general:'General', settings_lang:'🌐 Language', settings_server:'Server', theme_title:'🌙 Theme', theme_sub:'Dark / Light', btn_change:'Change',
+    btn_refresh:'🔄 Refresh', btn_open_folder:'📂 Open Folder', btn_clear_all:'🗑 Clear All',
+    comments_title:'💬 Comments', channel_subscribe:'Subscribe', channel_subscribed:'✓ Subscribed',
+  },
+  de: {
+    nav_download:'Download', nav_watch:'Ansehen', nav_files:'Downloads', nav_history:'Verlauf', nav_about:'Über',
+    settings_title:'Einstellungen', lang_desc:'Sprache wählen. Sofort wirksam.', files_count:'Dateien',
+    hero_badge:'✨ YouTube • Music • Shorts • Playlist', hero_title:'Link einfügen,', hero_title_grad:'herunterladen.', hero_sub:'In YouTube auf <b>Teilen → App</b> tippen.',
+    placeholder_link:'https://youtube.com/watch?v=...', btn_paste:'Einfügen', btn_analyze:'Analysieren', btn_search:'Suchen',
+    chip_yt:'Beispiel: YouTube', chip_music:'Beispiel: Music', chip_short:'Beispiel: Shorts', chip_ytu:'Beispiel: youtu.be',
+    howto_1:'<b>Link kopieren</b><br>von YouTube', howto_2:'<b>Einfügen</b><br>oder Teilen → App', howto_3:'<b>Qualität wählen</b><br>MP4 / MP3',
+    preview_open:'↗ Auf YouTube öffnen', preview_play:'▶ Vorschau', opt_title:'Download-Optionen', tab_all:'Alle', tab_video:'Video', tab_audio:'Audio / MP3',
+    hint_direct:'💡 <b>Direktmodus</b> — MP4/M4A/MP3 direkt aufs Gerät.',
+    izle_badge:'▶ Wie Tubular • Hier ansehen', izle_title:'YouTube', izle_title_grad:'ohne Verlassen', izle_sub:'Suchen, Trends entdecken, abspielen — <b>werbefrei</b>.',
+    placeholder_search:'Suchen: Musik, Comedy, Nachrichten...', shorts_badge:'⚡ Shorts • Vertikal', shorts_title:'Shorts', shorts_title_grad:'entdecken', shorts_sub:'Vertikaler Feed — werbefrei.',
+    files_badge:'📁 Downloads • Dateimanager', files_title:'Deine Downloads', files_title_grad:'hier.', files_sub:'Alle Dateien hier. Abspielen, teilen, löschen.',
+    files_heading:'📁 Meine Dateien', files_empty_title:'Noch keine Dateien', files_empty_sub:'Downloads erscheinen hier',
+    history_title:'🕘 Verlauf', history_empty:'Noch keine Downloads', about_badge:'YouTube & Music • Schnell',
+    settings_general:'Allgemein', settings_lang:'🌐 Sprache', settings_server:'Server', theme_title:'🌙 Thema', theme_sub:'Dunkel / Hell', btn_change:'Ändern',
+    btn_refresh:'🔄 Aktualisieren', btn_open_folder:'📂 Ordner öffnen', btn_clear_all:'🗑 Alles löschen',
+    comments_title:'💬 Kommentare', channel_subscribe:'Abonnieren', channel_subscribed:'✓ Abonniert',
+  },
+  ar: {
+    nav_download:'تحميل', nav_watch:'مشاهدة', nav_files:'التنزيلات', nav_history:'السجل', nav_about:'حول',
+    settings_title:'الإعدادات', lang_desc:'اختر لغة الواجهة. تطبق فوراً.', files_count:'ملفات',
+    hero_badge:'✨ يوتيوب • ميوزك • شورتس', hero_title:'الصق الرابط،', hero_title_grad:'وحمّل.', hero_sub:'من يوتيوب اختر <b>مشاركة → التطبيق</b>.',
+    placeholder_link:'https://youtube.com/watch?v=...', btn_paste:'لصق', btn_analyze:'تحليل', btn_search:'بحث',
+    chip_yt:'مثال: يوتيوب', chip_music:'مثال: ميوزك', chip_short:'مثال: شورتس', chip_ytu:'مثال: youtu.be',
+    howto_1:'<b>انسخ الرابط</b><br>من يوتيوب', howto_2:'<b>الصق</b><br>أو مشاركة → التطبيق', howto_3:'<b>اختر الجودة</b><br>MP4 / MP3',
+    preview_open:'↗ فتح في يوتيوب', preview_play:'▶ معاينة', opt_title:'خيارات التحميل', tab_all:'الكل', tab_video:'فيديو', tab_audio:'صوت',
+    hint_direct:'💡 <b>الوضع المباشر</b> — MP4/M4A/MP3 مباشرة إلى الجهاز.',
+    izle_badge:'▶ مثل Tubular • شاهد هنا', izle_title:'شاهد يوتيوب', izle_title_grad:'دون مغادرة', izle_sub:'ابحث واكتشف — <b>بدون إعلانات</b>.',
+    placeholder_search:'بحث: موسيقى، كوميديا، أخبار...', shorts_badge:'⚡ شورتس • عمودي', shorts_title:'تصفح', shorts_title_grad:'شورتس', shorts_sub:'شورتس داخل التطبيق.',
+    files_badge:'📁 التنزيلات • مدير الملفات', files_title:'تنزيلاتك', files_title_grad:'هنا.', files_sub:'جميع الملفات هنا.',
+    files_heading:'📁 ملفاتي', files_empty_title:'لا ملفات بعد', files_empty_sub:'ستظهر هنا',
+    history_title:'🕘 السجل', history_empty:'لا تنزيلات', about_badge:'يوتيوب • سريع',
+    settings_general:'عام', settings_lang:'🌐 اللغة', settings_server:'الخادم', theme_title:'🌙 السمة', theme_sub:'داكن / فاتح', btn_change:'تغيير',
+    btn_refresh:'🔄 تحديث', btn_open_folder:'📂 فتح المجلد', btn_clear_all:'🗑 مسح الكل',
+    comments_title:'💬 التعليقات', channel_subscribe:'اشتراك', channel_subscribed:'✓ مشترك',
+  },
+  ru: {
+    nav_download:'Скачать', nav_watch:'Смотреть', nav_files:'Загрузки', nav_history:'История', nav_about:'О нас',
+    settings_title:'Настройки', lang_desc:'Выберите язык. Применяется мгновенно.', files_count:'Файлов',
+    hero_badge:'✨ YouTube • Музыка • Shorts', hero_title:'Вставьте ссылку,', hero_title_grad:'скачайте.', hero_sub:'В YouTube нажмите <b>Поделиться → Приложение</b>.',
+    placeholder_link:'https://youtube.com/watch?v=...', btn_paste:'Вставить', btn_analyze:'Анализ', btn_search:'Поиск',
+    chip_yt:'Пример: YouTube', chip_music:'Пример: Music', chip_short:'Пример: Shorts', chip_ytu:'Пример: youtu.be',
+    howto_1:'<b>Скопируйте ссылку</b><br>из YouTube', howto_2:'<b>Вставьте</b><br>или Поделиться → Приложение', howto_3:'<b>Выберите качество</b><br>MP4 / MP3',
+    preview_open:'↗ Открыть на YouTube', preview_play:'▶ Предпросмотр', opt_title:'Опции загрузки', tab_all:'Все', tab_video:'Видео', tab_audio:'Аудио / MP3',
+    hint_direct:'💡 <b>Прямой режим</b> — MP4/M4A/MP3 прямо на устройство.',
+    izle_badge:'▶ Как Tubular • Смотрите здесь', izle_title:'Смотрите YouTube', izle_title_grad:'не выходя', izle_sub:'Поиск, тренды, воспроизведение — <b>без рекламы</b>.',
+    placeholder_search:'Поиск: музыка, комедия, новости...', shorts_badge:'⚡ Shorts • Вертикально', shorts_title:'Смотрите', shorts_title_grad:'Shorts', shorts_sub:'Вертикальная лента — без рекламы.',
+    files_badge:'📁 Загрузки • Менеджер', files_title:'Ваши загрузки', files_title_grad:'здесь.', files_sub:'Все файлы здесь.',
+    files_heading:'📁 Мои загрузки', files_empty_title:'Пока нет файлов', files_empty_sub:'Загрузки появятся здесь',
+    history_title:'🕘 История', history_empty:'Пока нет загрузок', about_badge:'YouTube • Быстро',
+    settings_general:'Общие', settings_lang:'🌐 Язык', settings_server:'Сервер', theme_title:'🌙 Тема', theme_sub:'Тёмная / Светлая', btn_change:'Изменить',
+    btn_refresh:'🔄 Обновить', btn_open_folder:'📂 Открыть папку', btn_clear_all:'🗑 Очистить всё',
+    comments_title:'💬 Комментарии', channel_subscribe:'Подписаться', channel_subscribed:'✓ Подписан',
+  }
 };
 const LANG_KEY='indir_gitsin_lang';
 function getLang(){ return localStorage.getItem(LANG_KEY) || 'tr'; }
 function t(k){ const l=getLang(); return (I18N[l]&&I18N[l][k]) || (I18N.tr[k]||k); }
 function applyLang(l){
+  if(!I18N[l]) l='tr';
   localStorage.setItem(LANG_KEY, l);
   document.documentElement.lang=l;
   document.body.dir=(l==='ar'?'rtl':'ltr');
-  document.querySelectorAll('[data-i18n]').forEach(el=>{ const k=el.dataset.i18n; if(I18N[l]&&I18N[l][k]) el.textContent=I18N[l][k]; });
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const k=el.dataset.i18n;
+    const val=(I18N[l]&&I18N[l][k]) || (I18N.tr[k]||null);
+    if(val!==null) el.textContent=val;
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el=>{
+    const k=el.dataset.i18nHtml;
+    const val=(I18N[l]&&I18N[l][k]) || (I18N.tr[k]||null);
+    if(val!==null) el.innerHTML=val;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
+    const k=el.dataset.i18nPlaceholder;
+    const val=(I18N[l]&&I18N[l][k]) || (I18N.tr[k]||null);
+    if(val!==null) el.placeholder=val;
+  });
   document.querySelectorAll('.lang-btn').forEach(b=> b.classList.toggle('active', b.dataset.lang===l));
 }
-setTimeout(()=> applyLang(getLang()), 50);
+setTimeout(()=> applyLang(getLang()), 30);
 
 // --- helpers ---
 function showStatus(msg, type='info'){
@@ -989,6 +1089,7 @@ function addToHistory(info, format){
   h.unshift({title:info.title, thumb:info.thumbnail, url:info.url, format:format.label, date:new Date().toISOString()});
   saveHistory(h.slice(0,30));
   renderHistory();
+  if(window.renderFiles) try{ window.renderFiles(); }catch{}
 }
 
 // Medya Oynatıcı - Geçmişteki video/müzik oynatma
@@ -1373,7 +1474,7 @@ window.handleSharedText = handleSharedText;
 })();
 
 // --- Otomatik Güncelleme (GitHub Releases) ---
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.7.1';
 const GITHUB_REPO = 'keremmkilincc-wq/indirgitsin';
 const UPDATE_CHECK_KEY = 'indir_gitsin_update_dismiss';
 const UPDATE_LAST_CHECK = 'indir_gitsin_last_check';
@@ -1997,6 +2098,8 @@ window.addEventListener('focus', ()=> checkForUpdate(false));
     if(confirm('Tüm indirilen geçmişi silinsin mi? (Dosyalar cihazda kalır)')){ const nh=loadHistory().filter(x=> x.format==='Görüntülendi'); saveHistory(nh); renderFiles(); renderHistory(); showStatus('Temizlendi','info'); }
   });
   window.renderFiles=renderFiles;
+  // ilk yüklemede sayaç güncelle
+  setTimeout(renderFiles, 300);
 })();
 
 // === Kanal / Yorum / Abone (İzle player) ===

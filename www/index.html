@@ -57,37 +57,37 @@
   <!-- Sekme: İndir -->
   <section id="tab-indir" class="tab-content active">
     <section class="hero-card glass">
-      <div class="hero-badge">✨ YouTube • YouTube Music • Shorts • Playlist</div>
-      <h2 class="hero-title">Linki yapıştır, <span class="gradient-text">indir gitsin.</span></h2>
-      <p class="hero-sub">YouTube uygulamasından <b>Paylaş → İndir Gitsin</b> diyerek de indirebilirsin.</p>
+      <div class="hero-badge" data-i18n="hero_badge">✨ YouTube • YouTube Music • Shorts • Playlist</div>
+      <h2 class="hero-title"><span data-i18n="hero_title">Linki yapıştır,</span> <span class="gradient-text" data-i18n="hero_title_grad">indir gitsin.</span></h2>
+      <p class="hero-sub" data-i18n-html="hero_sub">YouTube uygulamasından <b>Paylaş → İndir Gitsin</b> diyerek de indirebilirsin.</p>
 
       <div class="input-group">
         <div class="input-wrapper">
           <span class="input-icon">🔗</span>
-          <input id="urlInput" type="url" placeholder="https://youtube.com/watch?v=... veya https://music.youtube.com/..." autocomplete="off" spellcheck="false">
-          <button id="pasteBtn" class="paste-btn" title="Panodan yapıştır">Yapıştır</button>
+          <input id="urlInput" type="url" data-i18n-placeholder="placeholder_link" placeholder="https://youtube.com/watch?v=... veya https://music.youtube.com/..." autocomplete="off" spellcheck="false">
+          <button id="pasteBtn" class="paste-btn" data-i18n="btn_paste" title="Panodan yapıştır">Yapıştır</button>
           <button id="clearBtn" class="clear-btn hidden" title="Temizle">✕</button>
         </div>
         <button id="analyzeBtn" class="primary-btn">
-          <span id="analyzeText">Çözümle</span>
+          <span id="analyzeText" data-i18n="btn_analyze">Çözümle</span>
           <span id="analyzeSpinner" class="spinner hidden"></span>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
       </div>
 
       <div class="chips">
-        <button class="chip" data-sample="https://www.youtube.com/watch?v=jNQXAC9IVRw">Örnek: YouTube</button>
-        <button class="chip" data-sample="https://music.youtube.com/watch?v=jNQXAC9IVRw">Örnek: Music</button>
-        <button class="chip" data-sample="https://youtu.be/jNQXAC9IVRw">Örnek: youtu.be</button>
-        <button class="chip" data-sample="https://www.youtube.com/shorts/jNQXAC9IVRw">Örnek: Shorts</button>
+        <button class="chip" data-sample="https://www.youtube.com/watch?v=jNQXAC9IVRw" data-i18n="chip_yt">Örnek: YouTube</button>
+        <button class="chip" data-sample="https://music.youtube.com/watch?v=jNQXAC9IVRw" data-i18n="chip_music">Örnek: Music</button>
+        <button class="chip" data-sample="https://youtu.be/jNQXAC9IVRw" data-i18n="chip_ytu">Örnek: youtu.be</button>
+        <button class="chip" data-sample="https://www.youtube.com/shorts/jNQXAC9IVRw" data-i18n="chip_short">Örnek: Shorts</button>
       </div>
 
       <div class="howto">
-        <div class="howto-item"><span>1</span><p><b>Linki kopyala</b><br>YouTube veya Music'ten</p></div>
+        <div class="howto-item"><span>1</span><p data-i18n-html="howto_1"><b>Linki kopyala</b><br>YouTube veya Music'ten</p></div>
         <div class="howto-arrow">→</div>
-        <div class="howto-item"><span>2</span><p><b>Yapıştır</b><br>veya Paylaş → İndir Gitsin</p></div>
+        <div class="howto-item"><span>2</span><p data-i18n-html="howto_2"><b>Yapıştır</b><br>veya Paylaş → İndir Gitsin</p></div>
         <div class="howto-arrow">→</div>
-        <div class="howto-item"><span>3</span><p><b>Kalite seç & indir</b><br>MP4 / MP3 / Audio</p></div>
+        <div class="howto-item"><span>3</span><p data-i18n-html="howto_3"><b>Kalite seç & indir</b><br>MP4 / MP3 / Audio</p></div>
       </div>
     </section>
 
@@ -140,19 +140,19 @@
 
    <!-- Sekme: İzle (Tubular tarzı - YouTube'u uygulama içinde izle) -->
   <section id="tab-izle" class="tab-content hidden">
-    <section class="hero-card glass">
-      <div class="hero-badge">▶ Tubular gibi • YouTube'u burada izle</div>
-      <h2 class="hero-title">YouTube'u <span class="gradient-text">uygulamadan çıkmadan</span> izle.</h2>
-      <p class="hero-sub">Ara, trendleri keşfet, tek tıkla oynat — <b>reklamsız, hızlı</b>. Beğendiğini altta <b>İndir</b> ile kaydet.</p>
+     <section class="hero-card glass">
+      <div class="hero-badge" data-i18n="izle_badge">▶ Tubular gibi • YouTube'u burada izle</div>
+      <h2 class="hero-title"><span data-i18n="izle_title">YouTube'u</span> <span class="gradient-text" data-i18n="izle_title_grad">uygulamadan çıkmadan</span> <span data-i18n="nav_watch">izle.</span></h2>
+      <p class="hero-sub" data-i18n-html="izle_sub">Ara, trendleri keşfet, tek tıkla oynat — <b>reklamsız, hızlı</b>. Beğendiğini altta <b>İndir</b> ile kaydet.</p>
 
       <div class="input-group">
         <div class="input-wrapper">
           <span class="input-icon">🔍</span>
-          <input id="izleSearchInput" type="search" placeholder="Ara: müzik, komedi, haber, kanal adı..." autocomplete="off" spellcheck="false">
+          <input id="izleSearchInput" type="search" data-i18n-placeholder="placeholder_search" placeholder="Ara: müzik, komedi, haber, kanal adı..." autocomplete="off" spellcheck="false">
           <button id="izleClearBtn" class="clear-btn hidden" title="Temizle">✕</button>
         </div>
         <button id="izleSearchBtn" class="primary-btn">
-          <span id="izleSearchText">Ara</span>
+          <span id="izleSearchText" data-i18n="btn_search">Ara</span>
           <span id="izleSearchSpinner" class="spinner hidden"></span>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4-4"/></svg>
         </button>
@@ -243,16 +243,16 @@
   <!-- Sekme: Shorts (dikey, hızlı) -->
   <section id="tab-shorts" class="tab-content hidden">
     <section class="hero-card glass">
-      <div class="hero-badge">⚡ Shorts • Dikey • Hızlı</div>
-      <h2 class="hero-title">Shorts'u <span class="gradient-text">kaydırarak</span> keşfet.</h2>
-      <p class="hero-sub">Dikey video akışı — YouTube Shorts'u uygulama içinde, reklamsız.</p>
+      <div class="hero-badge" data-i18n="shorts_badge">⚡ Shorts • Dikey • Hızlı</div>
+      <h2 class="hero-title"><span data-i18n="shorts_title">Shorts'u</span> <span class="gradient-text" data-i18n="shorts_title_grad">kaydırarak</span> keşfet.</h2>
+      <p class="hero-sub" data-i18n="shorts_sub">Dikey video akışı — YouTube Shorts'u uygulama içinde, reklamsız.</p>
       <div class="input-group">
         <div class="input-wrapper">
           <span class="input-icon">⚡</span>
-          <input id="shortsSearchInput" type="search" placeholder="Shorts ara: komik, dans, kedi..." autocomplete="off" spellcheck="false">
+          <input id="shortsSearchInput" type="search" data-i18n-placeholder="placeholder_search" placeholder="Shorts ara: komik, dans, kedi..." autocomplete="off" spellcheck="false">
           <button id="shortsClearBtn" class="clear-btn hidden">✕</button>
         </div>
-        <button id="shortsSearchBtn" class="primary-btn"><span id="shortsSearchText">Ara</span><span id="shortsSearchSpinner" class="spinner hidden"></span>⚡</button>
+        <button id="shortsSearchBtn" class="primary-btn"><span id="shortsSearchText" data-i18n="btn_search">Ara</span><span id="shortsSearchSpinner" class="spinner hidden"></span>⚡</button>
       </div>
       <div class="chips" id="shortsChips">
         <button class="chip shorts-chip active" data-q="shorts">🔥 Trend Shorts</button>
@@ -294,24 +294,24 @@
   <!-- Sekme: İndirilenler (Dosya Yöneticisi) -->
   <section id="tab-indirilenler" class="tab-content hidden">
     <section class="hero-card glass">
-      <div class="hero-badge">📁 İndirilenler • Dosya Yöneticisi</div>
-      <h2 class="hero-title">İndirdiklerin <span class="gradient-text">burada.</span></h2>
-      <p class="hero-sub">Tüm MP4/M4A/MP3'ler burada listelenir. Oynat, paylaş, sil veya klasörde göster.</p>
+      <div class="hero-badge" data-i18n="files_badge">📁 İndirilenler • Dosya Yöneticisi</div>
+      <h2 class="hero-title"><span data-i18n="files_title">İndirdiklerin</span> <span class="gradient-text" data-i18n="files_title_grad">burada.</span></h2>
+      <p class="hero-sub" data-i18n="files_sub">Tüm MP4/M4A/MP3'ler burada listelenir. Oynat, paylaş, sil veya klasörde göster.</p>
       <div class="about-stats" style="margin-top:14px">
         <div class="about-stat"><b id="filesTotal">0</b><span data-i18n="files_count">Dosya</span></div>
         <div class="about-stat"><b id="filesVideo">0</b><span>Video</span></div>
         <div class="about-stat"><b id="filesAudio">0</b><span>Ses</span></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-        <button id="filesRefresh" class="ghost-btn" style="flex:1;justify-content:center">🔄 Yenile</button>
-        <button id="filesOpenFolder" class="ghost-btn" style="flex:1;justify-content:center">📂 Klasörü Aç</button>
-        <button id="filesClearAll" class="ghost-btn" style="flex:1;justify-content:center">🗑 Tümünü Temizle</button>
+        <button id="filesRefresh" class="ghost-btn" data-i18n="btn_refresh" style="flex:1;justify-content:center">🔄 Yenile</button>
+        <button id="filesOpenFolder" class="ghost-btn" data-i18n="btn_open_folder" style="flex:1;justify-content:center">📂 Klasörü Aç</button>
+        <button id="filesClearAll" class="ghost-btn" data-i18n="btn_clear_all" style="flex:1;justify-content:center">🗑 Tümünü Temizle</button>
       </div>
       <div id="filesStatusBox" class="status hidden" style="margin-top:12px"></div>
     </section>
     <section class="glass" style="padding:16px;margin-top:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <h3 style="font-family:'Outfit',sans-serif;font-size:15px">📁 Dosyalarım</h3>
+        <h3 style="font-family:'Outfit',sans-serif;font-size:15px" data-i18n="files_title">📁 İndirilenlerim</h3>
         <div style="display:flex;gap:6px">
           <button class="ghost-btn small files-filter active" data-f="all">Tümü</button>
           <button class="ghost-btn small files-filter" data-f="video">Video</button>
@@ -353,7 +353,7 @@
           <div style="flex:1">
             <h3 style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.02em">İndir Gitsin</h3>
             <p style="font-size:12px;opacity:0.9;margin-top:2px">YouTube & Music • Hızlı • Ücretsiz</p>
-            <div class="about-version-badge">✦ v1.7.0 • 2026 • MIT</div>
+            <div class="about-version-badge">✦ v1.7.1 • 2026 • MIT</div>
           </div>
         </div>
       </div>
@@ -386,7 +386,7 @@
   <button class="nav-item active" data-tab="indir"><span>⬇</span> <span data-i18n="nav_download">İndir</span></button>
   <button class="nav-item" data-tab="izle"><span>▶</span> <span data-i18n="nav_watch">İzle</span></button>
   <button class="nav-item" data-tab="shorts"><span>⚡</span> Shorts</button>
-  <button class="nav-item" data-tab="indirilenler"><span>📁</span> <span data-i18n="nav_files">Dosyalar</span> <span id="navFilesCount" class="hidden" style="font-size:10px;background:rgba(124,58,237,0.15);padding:2px 6px;border-radius:999px;margin-left:2px"></span></button>
+  <button class="nav-item" data-tab="indirilenler"><span>📁</span> <span data-i18n="nav_files">İndirilenler</span> <span id="navFilesCount" class="hidden" style="font-size:10px;background:rgba(124,58,237,0.15);padding:2px 6px;border-radius:999px;margin-left:2px"></span></button>
   <button class="nav-item" data-tab="gecmis"><span>🕘</span> <span data-i18n="nav_history">Geçmiş</span></button>
   <button class="nav-item" data-tab="hakkinda"><span>ℹ</span> <span data-i18n="nav_about">Hakkında</span></button>
 </nav>
@@ -423,7 +423,7 @@
           <button id="settingsThemeToggle" class="ghost-btn small">Değiştir</button>
         </div>
         <div style="padding:12px;border-radius:12px;background:rgba(124,58,237,0.10);border:1px solid rgba(124,58,237,0.18)">
-          <b style="font-size:13px">✨ v1.7.0 • Modern • Hızlı</b>
+          <b style="font-size:13px">✨ v1.7.1 • Modern • Hızlı</b>
           <p style="font-size:11px;color:var(--muted);margin-top:4px">Yeni: Shorts, Kanal, Yorum, İndirilenler, Çoklu dil</p>
         </div>
       </div>
@@ -471,7 +471,7 @@
         <div style="flex:1">
           <h3 style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.02em">İndir Gitsin</h3>
           <p style="font-size:12px;opacity:0.9;margin-top:2px">YouTube & YouTube Music • Hızlı • Ücretsiz</p>
-          <div class="about-version-badge">✦ v1.7.0 • 2026 • MIT</div>
+          <div class="about-version-badge">✦ v1.7.1 • 2026 • MIT</div>
         </div>
         <button id="aboutClose" class="icon-btn" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.2);color:white">✕</button>
       </div>
