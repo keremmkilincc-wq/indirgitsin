@@ -253,3 +253,29 @@ body.light .history-item:hover{background:white;border-color:rgba(15,23,42,0.1)}
 body.light .history-empty{border-color:rgba(15,23,42,0.1);background:rgba(15,23,42,0.02)}
 .history-empty-icon{font-size:28px;margin-bottom:8px;opacity:0.6}
 .history-empty p{font-size:13px;color:var(--muted);margin-top:4px}
+
+/* === İzle Sekmesi — Tubular tarzı === */
+.izle-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:12px}
+@media(max-width:640px){ .izle-grid{grid-template-columns:1fr} }
+.izle-card{display:flex;flex-direction:column;overflow:hidden;border-radius:16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.07);cursor:pointer;transition:0.18s}
+.izle-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,0.14);background:rgba(255,255,255,0.08);box-shadow:0 8px 24px rgba(0,0,0,0.25)}
+body.light .izle-card{background:rgba(255,255,255,0.7);border-color:rgba(15,23,42,0.06)}
+body.light .izle-card:hover{background:white;border-color:rgba(15,23,42,0.1)}
+.izle-thumb{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#111;flex-shrink:0}
+.izle-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.izle-duration{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.82);color:white;font-size:11px;font-weight:700;padding:3px 6px;border-radius:6px}
+.izle-views{position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);color:white;font-size:10px;font-weight:700;padding:3px 7px;border-radius:999px}
+.izle-play-overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,0.22);opacity:0;transition:0.18s}
+.izle-card:hover .izle-play-overlay{opacity:1}
+.izle-play-overlay span{width:48px;height:48px;border-radius:50%;background:rgba(255,0,51,0.92);display:grid;place-items:center;color:white;font-size:18px;box-shadow:0 4px 16px rgba(255,0,51,0.4)}
+.izle-info{padding:12px 13px;display:flex;flex-direction:column;gap:4px;flex:1}
+.izle-info b{font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:36px}
+.izle-info .izle-channel{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.izle-info .izle-meta{font-size:10px;color:var(--muted);opacity:0.75;display:flex;gap:6px;flex-wrap:wrap}
+.izle-card-actions{display:flex;gap:6px;padding:0 13px 12px}
+.izle-card-actions .ghost-btn{flex:1;justify-content:center;font-size:11px;padding:7px}
+.izle-card-actions .download-btn{flex:1;justify-content:center;font-size:11px;padding:7px}
+.izle-chip.active{background:white;color:#111;border-color:rgba(0,0,0,0.08)}
+body.light .izle-chip.active{background:#111;color:white}
+#izlePlayerWrap{border:1px solid rgba(255,255,255,0.1)}
+#izlePlayerWrap .ghost-btn{font-size:12px}

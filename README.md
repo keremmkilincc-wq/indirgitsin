@@ -4,13 +4,13 @@
 
 # İndir Gitsin
 
-### YouTube & YouTube Music için en hızlı, en sade indirici
+### YouTube & YouTube Music için en hızlı, en sade indirici + Tubular tarzı izleyici
 
-**Link yapıştır** veya **YouTube → Paylaş → İndir Gitsin** de, gerisini o halleder.
+**Link yapıştır** veya **YouTube → Paylaş → İndir Gitsin** de, gerisini o halleder. Yeni **▶ İzle** sekmesi ile YouTube'u **uygulamayı terk etmeden** ara, trendleri keşfet, reklamsız izle ve tek tıkla indir.
 
 <br/>
 
-[![Version](https://img.shields.io/badge/version-v1.5.0-FF0033?style=for-the-badge&labelColor=0a0a0f)](https://github.com/keremmkilincc-wq/indirgitsin/releases)
+[![Version](https://img.shields.io/badge/version-v1.6.0-FF0033?style=for-the-badge&labelColor=0a0a0f)](https://github.com/keremmkilincc-wq/indirgitsin/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/keremmkilincc-wq/indirgitsin/release.yml?branch=main&label=build&style=for-the-badge&labelColor=0a0a0f&color=7c3aed)](https://github.com/keremmkilincc-wq/indirgitsin/actions)
 [![Downloads](https://img.shields.io/github/downloads/keremmkilincc-wq/indirgitsin/total?style=for-the-badge&labelColor=0a0a0f&color=06b6d4)](https://github.com/keremmkilincc-wq/indirgitsin/releases)
 [![License](https://img.shields.io/badge/license-MIT-10b981?style=for-the-badge&labelColor=0a0a0f)](LICENSE)
@@ -30,7 +30,7 @@
 <tr>
 <td width="50%">
 
-**Tek dokunuşta** YouTube, YouTube Music, Shorts ve youtu.be linklerini çözümler. Sunucusuz doğrudan mod ile **MP4 / M4A doğrudan cihaza** iner, **MP3 cihazda FFmpeg.wasm ile** dönüştürülür. İstersen kendi backend’ini ekleyip 1080p+ ve birleştirme için kullanırsın.
+**Tek dokunuşta** YouTube, YouTube Music, Shorts ve youtu.be linklerini çözümler. Sunucusuz doğrudan mod ile **MP4 / M4A doğrudan cihaza** iner, **MP3 cihazda FFmpeg.wasm ile** dönüştürülür. İstersen kendi backend’ini ekleyip 1080p+ ve birleştirme için kullanırsın. **Yeni v1.6.0:** Tubular/NewPipe ilhamlı **▶ İzle** sekmesi — Piped + Innertube ile arama/trend, uygulama içi oynatıcı, izlerken indir.
 
 </td>
 <td width="50%">
@@ -43,6 +43,11 @@ flowchart LR
   C --> E[ MP3 cihazda dönüştür ]
   D --> F[Download/IndirGitsin]
   E --> F
+  G[▶ İzle Sekmesi] --> H{ Ara / Trend }
+  H --> I[ Piped Search + Trending ]
+  I --> J[ Uygulama içi Player ]
+  J --> K[ Tek tıkla İndir ]
+  K --> F
 ```
 
 </td>
@@ -55,10 +60,10 @@ flowchart LR
 
 <div align="center">
 
-| İndir Sekmesi | Geçmiş | Hakkında |
-|---|---|---|
-| Link yapıştır, kalite seç, indir | Grid, badge, oynat & sil | Glass hero, özellikler, güncelle |
-| *Hero + Preview + Seçenekler* | *18 son işlem, zaman etiketi* | *v1.5.0, stats, repo linkleri* |
+| İndir Sekmesi | ▶ İzle (Yeni v1.6.0) | Geçmiş | Hakkında |
+|---|---|---|---|
+| Link yapıştır, kalite seç, indir | Ara, trend, uygulama içi izle | Grid, badge, oynat & sil | Glass hero, özellikler, güncelle |
+| *Hero + Preview + Seçenekler* | *Piped Search/Trending, inline player, izlerken indir* | *18 son işlem, zaman etiketi* | *v1.6.0, stats, repo linkleri* |
 
 > **İpucu:** `assets/icon.svg` ve `manifest.json` ile tam PWA — ana ekrana ekle, uygulama gibi kullan.
 
@@ -75,12 +80,13 @@ flowchart LR
 | 🎬 **Video** | MP4 360p / 480p / 720p / 1080p (progressive doğrudan) |
 | 🎵 **Ses** | M4A (128kbps), OPUS, **MP3 cihazda dönüştür** (FFmpeg.wasm 0.11 & 0.12 dual) |
 | ⚡ **Sunucusuz** | Piped → Innertube fallback, `nativeFetch` + `CapacitorHttp` CORS bypass, `Filesystem.downloadFile` + `DownloadManager` |
-| 🧩 **Sekmeli UI** | `İndir / Geçmiş / Hakkında` ayrı sekmeler, `bottom-nav` tab, akıcı `tabIn` animasyonu |
+| ▶️ **İzle (Yeni v1.6.0)** | **Tubular/NewPipe tarzı:** Piped Search + `/trending?region=TR`, Innertube fallback, uygulama içi `video` player, izlerken **⬇ İndir** — YouTube'a gitmeden keşfet & izle |
+| 🧩 **Sekmeli UI** | `İndir / İzle / Geçmiş / Hakkında` 4 sekme, `bottom-nav` tab, akıcı `tabIn` animasyonu, İzle'de chip filtre + inline player + grid |
 | 🕘 **Geçmiş** | Grid, format badge (video/cyan, audio/amber), `az önce / 3dk / dün`, oynat ▶ & sil ✕, 30 kayıt |
-| ▶️ **Oynat** | Geçmişteki her videoyu/müziği taze URL ile `video`/`audio` modal’da oynat, YouTube’a git |
+| ▶️ **Oynat** | Geçmişteki her videoyu/müziği taze URL ile `video`/`audio` modal’da oynat, YouTube’a git; İzle'de seçili videoyu sayfa içinde oynat |
 | 🔄 **Otomatik Güncelleme** | `api.github.com/releases/latest` 4 saatte bir, banner + `🔄` buton, `APK İndir` native bridge |
-| 🎨 **Modern & Responsive** | Glassmorphism, gradient `Outfit` + `Inter`, dark/light persist, 980/768/640/380 breakpoint, compact |
-| 🧪 **APK’sız Test** | `python -m http.server 8000` ile tarayıcıda birebir test |
+| 🎨 **Modern & Responsive** | Glassmorphism, gradient `Outfit` + `Inter`, dark/light persist, 980/768/640/380 breakpoint, `izle-card` hover, compact |
+| 🧪 **APK’sız Test** | `python -m http.server 8000` ile tarayıcıda birebir test (İzle dahil) |
 
 ---
 
@@ -128,6 +134,7 @@ python server/app.py
 1. [Releases](https://github.com/keremmkilincc-wq/indirgitsin/releases/latest) → `app-debug.apk` indir
 2. Android’de `Bilinmeyen kaynaklara izin ver` → kur
 3. YouTube’da bir video → **Paylaş → İndir Gitsin** → kalite seç → `İndirilenler/IndirGitsin` klasöründe
+4. **Yeni v1.6.0:** Uygulamayı aç → **▶ İzle** → ara veya Trend'e göz at → video seç → uygulama içinde izle → beğendiysen **⬇ İndir**
 
 ---
 
@@ -151,8 +158,8 @@ npx cap open android
 ### Otomatik (GitHub Actions)
 
 ```bash
-git tag v1.5.0
-git push origin v1.5.0
+git tag v1.6.0
+git push origin v1.6.0
 # veya
 git push origin main
 ```
@@ -167,13 +174,13 @@ Workflow badge’ini yukarıda görebilirsin. Her `main` push’u `v<run_number>
 
 ```
 kozauygulama/
-├─ index.html                 # Tabbed UI: indir / geçmiş / hakkında
+├─ index.html                 # Tabbed UI: indir / izle / geçmiş / hakkında (İzle: arama + trending + inline player)
 ├─ manifest.json              # PWA + share_target + shortcuts
 ├─ capacitor.config.json      # appId: com.indirgitsin.app, webDir: www
-├─ package.json               # v1.5.0
+├─ package.json               # v1.6.0
 ├─ assets/
-│  ├─ app.js                  # 1300+ satır: fetchInfo (Piped→Innertube), nativeFetch, downloadViaNative, ffmpeg dual, history, player, update
-│  ├─ style.css               # Glassmorphism, responsive, tab, history grid, about hero
+│  ├─ app.js                  # 1700+ satır: fetchInfo (Piped→Innertube), izleSearch (Piped Search/Trending → Innertube fallback), nativeFetch, downloadViaNative, ffmpeg dual, history, player, update
+│  ├─ style.css               # Glassmorphism, responsive, tab, izle-grid/card, history grid, about hero
 │  └─ icon.svg
 ├─ www/                       # Build çıktısı (index + assets kopyası, cap sync için)
 ├─ server/
@@ -205,12 +212,13 @@ Frontend önce `Piped/Innertube` ile dener, backend sadece `hasServer=true` ise 
 
 ## 🎨 Arayüz Detayları
 
-* **Sekmeler:** `bottom-nav` → `switchTab('indir'|'gecmis'|'hakkinda')`, `tabIn` keyframe, `window.scrollTo(0)`
-* **Hero:** `badge` + `gradient-text` + `input-wrapper:focus-within` + `chips` yatay scroll
+* **Sekmeler:** `bottom-nav` → `switchTab('indir'|'izle'|'gecmis'|'hakkinda')`, `tabIn` keyframe, `window.scrollTo(0)` — İzle lazy-load: ilk açılışta `trend` trending çekilir
+* **Hero:** `badge` + `gradient-text` + `input-wrapper:focus-within` + `chips` yatay scroll (İzle'de 8 chip: Trend/Müzik/Oyun...)
 * **Preview/Options:** `filter-tabs` (Tümü/Video/Ses), `option` hover lift, `download-btn` gradient
+* **İzle:** `izle-grid` auto-fill 260px, `izle-card` thumb + duration/views badge + play overlay, `izlePlayerWrap` inline `video` + `fetchInfo` taze MP4, `Daha fazla yükle` nextpage
 * **Geçmiş:** `grid auto-fill 280px`, `history-badge`, `history-play` gradient, `history-delete` hover
-* **Player Modal:** `playerModal` → `video`/`audio` toggle, `fetchInfo` taze URL, fallback YouTube link
-* **About:** `about-hero` gradient + radial overlay, `about-features` 2×2 grid, `about-stats`
+* **Player Modal:** `playerModal` → `video`/`audio` toggle, `fetchInfo` taze URL, fallback YouTube link (İzle'de modal yerine inline player)
+* **About:** `about-hero` gradient + radial overlay, `about-features` 2×2 grid, `about-stats` (v1.6.0)
 
 ---
 
@@ -220,9 +228,11 @@ Frontend önce `Piped/Innertube` ile dener, backend sadece `hasServer=true` ise 
 
 **1080p neden yok?** Progressive MP4’ler genelde 720p’ye kadar. 1080p+ için backend’li `yt-dlp + ffmpeg` merge gerekir → `⚙️ Sunucu ayarı`.
 
-**Nereye kaydediliyor?** `İndirilenler/IndirGitsin/<başlık>.<ext>` (native) veya tarayıcı `Downloads`.
+**İzle sekmesinde video oynatılmıyor / arama boş?** Piped instance’ları zaman zaman kapanıyor. Uygulama otomatik fallback yapar: `Piped search/trending → Innertube search`. Hala boşsa bir Piped host'unu değiştir veya VPN kapat/aç dene. Oynatma yine `fetchInfo` (Piped→Innertube) ile taze MP4 URL'i alır.
 
-**Sadece kendi videolarımı mı indirmeliyim?** Evet, yasal uyarıya uy: haklarına sahip olduğun veya izinli içerikler.
+**Nereye kaydediliyor?** `İndirilenler/IndirGitsin/<başlık>.<ext>` (native) veya tarayıcı `Downloads`. İzle'de izlerken **⬇ İndir** de aynı klasöre kaydeder.
+
+**Sadece kendi videolarımı mı indirmeliyim?** Evet, yasal uyarıya uy: haklarına sahip olduğun veya izinli içerikler. İzle sekmesi sadece görüntüleme için — indirme yine telif haklarına uygun kullanılmalı.
 
 ---
 

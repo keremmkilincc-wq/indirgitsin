@@ -138,6 +138,75 @@
     </section>
   </section>
 
+   <!-- Sekme: İzle (Tubular tarzı - YouTube'u uygulama içinde izle) -->
+  <section id="tab-izle" class="tab-content hidden">
+    <section class="hero-card glass">
+      <div class="hero-badge">▶ Tubular gibi • YouTube'u burada izle</div>
+      <h2 class="hero-title">YouTube'u <span class="gradient-text">uygulamadan çıkmadan</span> izle.</h2>
+      <p class="hero-sub">Ara, trendleri keşfet, tek tıkla oynat — <b>reklamsız, hızlı</b>. Beğendiğini altta <b>İndir</b> ile kaydet.</p>
+
+      <div class="input-group">
+        <div class="input-wrapper">
+          <span class="input-icon">🔍</span>
+          <input id="izleSearchInput" type="search" placeholder="Ara: müzik, komedi, haber, kanal adı..." autocomplete="off" spellcheck="false">
+          <button id="izleClearBtn" class="clear-btn hidden" title="Temizle">✕</button>
+        </div>
+        <button id="izleSearchBtn" class="primary-btn">
+          <span id="izleSearchText">Ara</span>
+          <span id="izleSearchSpinner" class="spinner hidden"></span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4-4"/></svg>
+        </button>
+      </div>
+
+      <div class="chips" id="izleChips">
+        <button class="chip izle-chip active" data-q="trend">🔥 Trend</button>
+        <button class="chip izle-chip" data-q="müzik">🎵 Müzik</button>
+        <button class="chip izle-chip" data-q="oyun">🎮 Oyun</button>
+        <button class="chip izle-chip" data-q="haber">📰 Haber</button>
+        <button class="chip izle-chip" data-q="komedi">😂 Komedi</button>
+        <button class="chip izle-chip" data-q="eğitim">📚 Eğitim</button>
+        <button class="chip izle-chip" data-q="spor">⚽ Spor</button>
+        <button class="chip izle-chip" data-q="teknoloji">💻 Teknoloji</button>
+      </div>
+
+      <div id="izleStatusBox" class="status hidden" style="margin-top:12px"></div>
+    </section>
+
+    <!-- Seçili video player (uygulama içi) -->
+    <section id="izlePlayerWrap" class="glass hidden" style="overflow:hidden;padding:0">
+      <div id="izlePlayerContainer" style="background:#000;aspect-ratio:16/9;display:grid;place-items:center;position:relative;overflow:hidden">
+        <video id="izleVideo" controls playsinline style="width:100%;height:100%;display:none;background:#000"></video>
+        <div id="izlePlayerPlaceholder" style="color:#666;font-size:13px;padding:20px;text-align:center">Video seç, burada oynar</div>
+        <div id="izlePlayerSpinner" class="spinner" style="position:absolute;width:28px;height:28px;border-width:3px;display:none"></div>
+      </div>
+      <div style="padding:14px 16px">
+        <h3 id="izlePlayerTitle" style="font-family:'Outfit',sans-serif;font-size:15px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">Başlık</h3>
+        <p id="izlePlayerChannel" style="font-size:12px;color:var(--muted);margin-top:4px"></p>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button id="izleDownloadBtn" class="download-btn" style="flex:1;justify-content:center">⬇ İndir</button>
+          <button id="izleShareBtn" class="ghost-btn" style="flex:1;justify-content:center">🔗 Paylaş</button>
+          <a id="izleOpenYtBtn" href="#" target="_blank" class="ghost-btn" style="flex:1;justify-content:center">↗ YouTube'da aç</a>
+        </div>
+        <div id="izlePlayerMeta" style="font-size:11px;color:var(--muted);margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+    </section>
+
+    <!-- Sonuçlar grid -->
+    <section id="izleResultsCard" class="glass" style="padding:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <h3 id="izleResultsTitle" style="font-family:'Outfit',sans-serif;font-size:15px">🔥 Trend — Keşfet</h3>
+        <span id="izleResultsCount" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+      <div id="izleResults" class="izle-grid" style="margin-top:12px"></div>
+      <div id="izleEmpty" class="history-empty hidden" style="margin-top:12px">
+        <div class="history-empty-icon">🔍</div>
+        <b style="font-size:13px">Sonuç yok</b>
+        <p>Farklı kelime dene veya Trend'e dön</p>
+      </div>
+      <button id="izleLoadMore" class="ghost-btn hidden" style="margin:14px auto 0;display:flex">Daha fazla yükle</button>
+    </section>
+  </section>
+
   <!-- Sekme: Geçmiş -->
   <section id="tab-gecmis" class="tab-content hidden">
     <section id="historyCard" class="history-card glass">
@@ -164,7 +233,7 @@
           <div style="flex:1">
             <h3 style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.02em">İndir Gitsin</h3>
             <p style="font-size:12px;opacity:0.9;margin-top:2px">YouTube & Music • Hızlı • Ücretsiz</p>
-            <div class="about-version-badge">✦ v1.5.0 • 2026 • MIT</div>
+            <div class="about-version-badge">✦ v1.6.0 • 2026 • MIT</div>
           </div>
         </div>
       </div>
@@ -195,6 +264,7 @@
 
 <nav class="bottom-nav glass">
   <button class="nav-item active" data-tab="indir"><span>⬇</span> İndir</button>
+  <button class="nav-item" data-tab="izle"><span>▶</span> İzle</button>
   <button class="nav-item" data-tab="gecmis"><span>🕘</span> Geçmiş <span id="navHistoryCount" class="hidden" style="font-size:10px;background:rgba(255,0,51,0.15);padding:2px 6px;border-radius:999px;margin-left:2px"></span></button>
   <button class="nav-item" data-tab="hakkinda"><span>ℹ</span> Hakkında</button>
 </nav>
@@ -244,7 +314,7 @@
         <div style="flex:1">
           <h3 style="font-family:'Outfit',sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.02em">İndir Gitsin</h3>
           <p style="font-size:12px;opacity:0.9;margin-top:2px">YouTube & YouTube Music • Hızlı • Ücretsiz</p>
-          <div class="about-version-badge">✦ v1.5.0 • 2026 • MIT</div>
+          <div class="about-version-badge">✦ v1.6.0 • 2026 • MIT</div>
         </div>
         <button id="aboutClose" class="icon-btn" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.2);color:white">✕</button>
       </div>

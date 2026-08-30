@@ -1056,10 +1056,11 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>{
 }));
 $('#clearHistory').addEventListener('click', ()=>{ localStorage.removeItem('indir_gitsin_history'); renderHistory(); });
 $('#cancelDl').addEventListener('click', ()=> progressModal.classList.add('hidden'));
-// Sekmeli navigasyon - İndir / Geçmiş / Hakkında
+// Sekmeli navigasyon - İndir / İzle / Geçmiş / Hakkında
 (function(){
   const tabs = {
     indir: $('#tab-indir'),
+    izle: $('#tab-izle'),
     gecmis: $('#tab-gecmis'),
     hakkinda: $('#tab-hakkinda')
   };
@@ -1284,7 +1285,7 @@ window.handleSharedText = handleSharedText;
 })();
 
 // --- Otomatik Güncelleme (GitHub Releases) ---
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 const GITHUB_REPO = 'keremmkilincc-wq/indirgitsin';
 const UPDATE_CHECK_KEY = 'indir_gitsin_update_dismiss';
 const UPDATE_LAST_CHECK = 'indir_gitsin_last_check';
@@ -1399,6 +1400,344 @@ window.addEventListener('focus', ()=> checkForUpdate(false));
   const aboutVer = document.querySelector('#aboutModal p');
   // extra: periyodik 6 saat
   setInterval(()=> checkForUpdate(false), 6*60*60*1000);
+})();
+
+// === İzle Sekmesi — Tubular tarzı: ara + oynat + indir (sunucusuz, Piped/Innertube) ===
+(function(){
+  const izleInput = document.getElementById('izleSearchInput');
+  const izleBtn = document.getElementById('izleSearchBtn');
+  const izleClear = document.getElementById('izleClearBtn');
+  const izleSpinner = document.getElementById('izleSearchSpinner');
+  const izleText = document.getElementById('izleSearchText');
+  const izleStatus = document.getElementById('izleStatusBox');
+  const izleResults = document.getElementById('izleResults');
+  const izleResultsTitle = document.getElementById('izleResultsTitle');
+  const izleResultsCount = document.getElementById('izleResultsCount');
+  const izleEmpty = document.getElementById('izleEmpty');
+  const izleLoadMore = document.getElementById('izleLoadMore');
+  const izlePlayerWrap = document.getElementById('izlePlayerWrap');
+  const izleVideo = document.getElementById('izleVideo');
+  const izlePlaceholder = document.getElementById('izlePlayerPlaceholder');
+  const izleSpinnerP = document.getElementById('izlePlayerSpinner');
+  const izleTitle = document.getElementById('izlePlayerTitle');
+  const izleChannel = document.getElementById('izlePlayerChannel');
+  const izleMeta = document.getElementById('izlePlayerMeta');
+  const izleOpenYt = document.getElementById('izleOpenYtBtn');
+  const izleDownloadBtn = document.getElementById('izleDownloadBtn');
+  const izleShareBtn = document.getElementById('izleShareBtn');
+  if(!izleInput || !izleResults) return;
+
+  let izleNextPage = null;
+  let izleCurrentQuery = 'trend';
+  let izleCurrentItems = [];
+  let izlePlayingId = null;
+  let izleCache = {};
+
+  function izleShowStatus(msg,type='info'){
+    if(!izleStatus) return;
+    izleStatus.textContent = msg;
+    izleStatus.className = 'status ' + type;
+    izleStatus.classList.remove('hidden');
+    if(type==='success') setTimeout(()=>izleStatus.classList.add('hidden'),3000);
+  }
+  function izleHideStatus(){ izleStatus && izleStatus.classList.add('hidden'); }
+  function izleSetLoading(v){
+    if(izleBtn) izleBtn.disabled = v;
+    if(izleText) izleText.textContent = v ? 'Aranıyor...' : 'Ara';
+    if(izleSpinner) izleSpinner.classList.toggle('hidden', !v);
+  }
+  function izleFormatViews(n){
+    if(!n) return '';
+    const num = typeof n==='string' ? parseInt(n.replace(/\D/g,'')) : n;
+    if(isNaN(num)) return String(n);
+    if(num>=1000000) return (num/1000000).toFixed(1).replace('.0','')+'M';
+    if(num>=1000) return (num/1000).toFixed(1).replace('.0','')+'B';
+    return String(num);
+  }
+
+  const PIPED_HOSTS_IZLE = [
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi.adminforge.de',
+    'https://api.piped.projectsegfau.lt',
+    'https://pipedapi.mha.fi',
+    'https://pipedapi.r4fo.com'
+  ];
+
+  async function pipedSearch(query, filter='videos'){
+    const q = encodeURIComponent(query);
+    for(const host of PIPED_HOSTS_IZLE){
+      try{
+        const url = `${host}/search?q=${q}&filter=${filter}`;
+        const r = await fetchWithTimeout(url, {}, 6000);
+        if(!r.ok) continue;
+        const j = await r.json();
+        const items = j.items || j.results || [];
+        if(items.length) return {items, nextpage: j.nextpage || null, source: host};
+      }catch(e){ continue; }
+    }
+    throw new Error('Piped search failed');
+  }
+  async function pipedTrending(region='TR'){
+    for(const host of PIPED_HOSTS_IZLE){
+      try{
+        const r = await fetchWithTimeout(`${host}/trending?region=${region}`, {}, 6000);
+        if(!r.ok) continue;
+        const j = await r.json();
+        if(Array.isArray(j) && j.length) return {items: j, nextpage: null};
+        if(j.items && j.items.length) return {items: j.items, nextpage: null};
+      }catch(e){ continue; }
+    }
+    throw new Error('Trending failed');
+  }
+  async function innertubeSearch(query){
+    const key='AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
+    const url=`https://www.youtube.com/youtubei/v1/search?key=${key}`;
+    const clients=[
+      {clientName:'ANDROID', clientVersion:'20.10.38'},
+      {clientName:'WEB', clientVersion:'2.20250101.00.00'}
+    ];
+    for(const cl of clients){
+      try{
+        const body={context:{client:{...cl, hl:'tr', gl:'TR'}}, query, params:'EgIQAQ=='};
+        let r;
+        try{ r = await nativeFetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); }catch{ r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+        if(!r.ok) continue;
+        const j=await r.json();
+        const contents = j.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
+        let videos=[];
+        for(const sec of contents){
+          const itemSec = sec.itemSectionRenderer?.contents || [];
+          for(const it of itemSec){
+            const vr = it.videoRenderer;
+            if(!vr) continue;
+            const vid = vr.videoId;
+            const title = vr.title?.runs?.[0]?.text || 'Bilinmeyen';
+            const channel = vr.ownerText?.runs?.[0]?.text || vr.longBylineText?.runs?.[0]?.text || '';
+            const thumb = vr.thumbnail?.thumbnails?.slice(-1)[0]?.url || `https://img.youtube.com/vi/${vid}/hqdefault.jpg`;
+            const duration = vr.lengthText?.simpleText || '';
+            const views = vr.viewCountText?.simpleText || '';
+            const uploadedAt = vr.publishedTimeText?.simpleText || '';
+            videos.push({type:'stream', title, url:`/watch?v=${vid}`, thumbnail: thumb, uploaderName: channel, duration: duration, views: views, uploadedDate: uploadedAt, videoId: vid});
+          }
+        }
+        if(videos.length) return {items: videos, nextpage: j.nextpage || null};
+      }catch(e){ continue; }
+    }
+    throw new Error('Innertube search failed');
+  }
+
+  async function fetchIzle(query){
+    const isTrend = query==='trend' || query==='trending';
+    if(isTrend){
+      try{ const t=await pipedTrending('TR'); return t; }catch(e){ console.log('trending piped fail',e); }
+      // fallback to search "trend"
+      query='trend turkiye';
+    }
+    // try piped search
+    try{ const s=await pipedSearch(query); return s; }catch(e){ console.log('piped search fail',e); }
+    // fallback innertube
+    try{ const s2=await innertubeSearch(query); return s2; }catch(e){ console.log('innertube search fail',e); throw e; }
+  }
+
+  function normalizeItem(it){
+    // piped item may have different fields
+    const vid = it.videoId || extractId(it.url||'') || (it.url && it.url.match(/v=([^&]+)/)?.[1]) || '';
+    // url may be /watch?v=xxx
+    const url = vid ? `https://www.youtube.com/watch?v=${vid}` : (it.url?.startsWith('http')? it.url : `https://www.youtube.com${it.url||''}`);
+    const thumb = it.thumbnail || it.thumbnailUrl || `https://img.youtube.com/vi/${vid}/hqdefault.jpg`;
+    const durationSec = it.duration || 0;
+    let durationStr='';
+    if(typeof durationSec==='number' && durationSec>0) durationStr = formatDuration(durationSec);
+    else if(typeof it.duration==='string') durationStr = it.duration;
+    else if(it.durationText) durationStr = it.durationText;
+    const views = it.views ? (typeof it.views==='number' ? izleFormatViews(it.views)+' görüntüleme' : String(it.views)) : (it.viewCountText||'');
+    const channel = it.uploaderName || it.uploader || it.channel || it.author || '';
+    const uploaded = it.uploadedDate || it.uploaded || '';
+    return {vid, url, thumb, title: it.title||'Başlıksız', channel, durationStr, views, uploaded, raw: it};
+  }
+
+  function renderIzle(items, append=false){
+    if(!append) izleResults.innerHTML='';
+    if(!items || items.length===0){
+      if(!append){ izleEmpty.classList.remove('hidden'); izleResultsCount.textContent='0 sonuç'; }
+      return;
+    }
+    izleEmpty.classList.add('hidden');
+    items.forEach(it=>{
+      const n = normalizeItem(it);
+      if(!n.vid) return;
+      const card=document.createElement('div');
+      card.className='izle-card';
+      card.innerHTML=`
+        <div class="izle-thumb">
+          <img src="${n.thumb}" alt="" loading="lazy" onerror="this.src='https://img.youtube.com/vi/${n.vid}/hqdefault.jpg'">
+          <span class="izle-duration">${n.durationStr||''}</span>
+          ${n.views? `<span class="izle-views">${n.views}</span>`:''}
+          <div class="izle-play-overlay"><span>▶</span></div>
+        </div>
+        <div class="izle-info">
+          <b title="${n.title.replace(/"/g,'&quot;')}">${n.title}</b>
+          <span class="izle-channel">${n.channel||'YouTube'}</span>
+          <span class="izle-meta">${n.uploaded? n.uploaded+' • ':''}${n.views||''}</span>
+        </div>
+        <div class="izle-card-actions">
+          <button class="ghost-btn izle-play-btn">▶ İzle</button>
+          <button class="download-btn izle-dl-btn">⬇ İndir</button>
+        </div>
+      `;
+      card.addEventListener('click', (e)=>{
+        if(e.target.closest('.izle-dl-btn')) return;
+        playIzleVideo(n);
+      });
+      card.querySelector('.izle-play-btn').addEventListener('click', (e)=>{ e.stopPropagation(); playIzleVideo(n); });
+      card.querySelector('.izle-dl-btn').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        // indir sekmesine yolla + çözümle
+        if(window.switchTab) window.switchTab('indir');
+        urlInput.value = n.url;
+        urlInput.dispatchEvent(new Event('input'));
+        handleAnalyze();
+      });
+      izleResults.appendChild(card);
+    });
+    izleResultsCount.textContent = `${izleResults.children.length} video`;
+    // load more visibility
+    if(izleNextPage) izleLoadMore.classList.remove('hidden'); else izleLoadMore.classList.add('hidden');
+  }
+
+  async function playIzleVideo(n){
+    izlePlayingId = n.vid;
+    izlePlayerWrap.classList.remove('hidden');
+    izleTitle.textContent = n.title;
+    izleChannel.textContent = n.channel ? n.channel + ' • ' + (n.views||'') : (n.views||'');
+    izleMeta.textContent = n.uploaded || '';
+    if(izleOpenYt) izleOpenYt.href = n.url;
+    if(izleDownloadBtn) izleDownloadBtn.onclick = ()=>{
+      if(window.switchTab) window.switchTab('indir');
+      urlInput.value = n.url;
+      urlInput.dispatchEvent(new Event('input'));
+      handleAnalyze();
+    };
+    if(izleShareBtn) izleShareBtn.onclick = async()=>{
+      try{ await navigator.clipboard.writeText(n.url); izleShowStatus('Link kopyalandı','success'); }catch{ izleShowStatus(n.url,'info'); }
+    };
+    if(izlePlaceholder){ izlePlaceholder.style.display='block'; izlePlaceholder.textContent='Video hazırlanıyor...'; }
+    if(izleSpinnerP) izleSpinnerP.style.display='block';
+    if(izleVideo){ izleVideo.style.display='none'; izleVideo.pause(); izleVideo.removeAttribute('src'); }
+    izlePlayerWrap.scrollIntoView({behavior:'smooth', block:'start'});
+    try{
+      const info = await fetchInfo(n.url);
+      // find best video stream
+      let mediaUrl='';
+      const vfmt = info.formats.find(f=> f.type==='video' && f.url && f.url.startsWith('http'));
+      if(vfmt) mediaUrl = vfmt.url;
+      else mediaUrl = info.formats.find(f=> f.url && f.url.startsWith('http'))?.url || '';
+      if(!mediaUrl){
+        if(izlePlaceholder) izlePlaceholder.innerHTML=`Doğrudan link alınamadı.<br><a href="${n.url}" target="_blank" style="color:#FF0033">YouTube'da aç</a>`;
+        if(izleSpinnerP) izleSpinnerP.style.display='none';
+        return;
+      }
+      if(izleSpinnerP) izleSpinnerP.style.display='none';
+      if(izlePlaceholder) izlePlaceholder.style.display='none';
+      if(izleVideo){
+        izleVideo.src = mediaUrl;
+        izleVideo.style.display='block';
+        izleVideo.play().catch(()=>{});
+      }
+      if(izleChannel) izleChannel.textContent = info.channel + ' • ' + formatDuration(info.duration);
+      if(izleMeta) izleMeta.textContent = info.views ? info.views + ' görüntüleme' : '';
+      if(izleDownloadBtn) izleDownloadBtn.onclick = ()=>{
+        // doğrudan mevcut info ile indir
+        // indir sekmesine geçmeden de indirilebilir: en iyi mp4'ü indir
+        const fmt = info.formats.find(f=> f.type==='video' && f.url) || info.formats[0];
+        if(fmt) startDownload(info, fmt, izleDownloadBtn);
+      };
+    }catch(e){
+      if(izleSpinnerP) izleSpinnerP.style.display='none';
+      if(izlePlaceholder){ izlePlaceholder.style.display='block'; izlePlaceholder.textContent='Oynatma hatası: '+(e.message||e); }
+    }
+  }
+
+  async function doIzleSearch(query, append=false){
+    if(!query) return;
+    izleCurrentQuery = query;
+    if(!append){
+      izleNextPage=null;
+      izleResults.innerHTML='';
+      izleHideStatus();
+    }
+    izleSetLoading(true);
+    izleResultsTitle.textContent = query==='trend' ? '🔥 Trend — Keşfet' : `🔍 "${query}" sonuçları`;
+    try{
+      let res;
+      const cacheKey = query + (append? '|page:'+izleNextPage:'');
+      if(!append && izleCache[query]){
+        res = izleCache[query];
+      } else {
+        if(append && izleNextPage){
+          // Piped nextpage: fetch next page via /nextpage/search?nextpage=...&q=...
+          // Simpler: pipedSearch with nextpage param not implemented, fallback to same query
+          // Try piped search nextpage endpoint
+          try{
+            const host = PIPED_HOSTS_IZLE[0];
+            const r = await fetchWithTimeout(`${host}/nextpage/search?nextpage=${encodeURIComponent(izleNextPage)}&q=${encodeURIComponent(query)}`,{},6000);
+            if(r.ok){
+              const j=await r.json();
+              res={items: j.items||[], nextpage: j.nextpage||null};
+            } else { res=await fetchIzle(query); }
+          }catch{ res=await fetchIzle(query); }
+        } else {
+          res = await fetchIzle(query);
+        }
+        if(!append) izleCache[query]=res;
+      }
+      const items = res.items || [];
+      izleCurrentItems = append ? izleCurrentItems.concat(items) : items;
+      izleNextPage = res.nextpage || null;
+      renderIzle(items, append);
+      if(items.length===0) izleShowStatus('Sonuç bulunamadı','error');
+    }catch(e){
+      izleShowStatus('Arama hatası: '+(e.message||e)+' — Piped kapalı olabilir, tekrar dene','error');
+      if(!append) renderIzle([],false);
+    }finally{ izleSetLoading(false); }
+  }
+
+  // Events
+  izleBtn.addEventListener('click', ()=> doIzleSearch(izleInput.value.trim()||'trend'));
+  izleInput.addEventListener('keydown', e=>{ if(e.key==='Enter') doIzleSearch(izleInput.value.trim()||'trend'); });
+  izleInput.addEventListener('input', ()=>{
+    const has = izleInput.value.trim().length>0;
+    izleClear.classList.toggle('hidden', !has);
+  });
+  izleClear.addEventListener('click', ()=>{
+    izleInput.value=''; izleClear.classList.add('hidden'); izleInput.focus();
+  });
+  document.querySelectorAll('.izle-chip').forEach(c=>{
+    c.addEventListener('click', ()=>{
+      document.querySelectorAll('.izle-chip').forEach(x=>x.classList.remove('active'));
+      c.classList.add('active');
+      const q=c.dataset.q;
+      izleInput.value = q==='trend' ? '' : q;
+      izleClear.classList.toggle('hidden', !izleInput.value);
+      doIzleSearch(q==='trend'?'trend':q);
+    });
+  });
+  izleLoadMore.addEventListener('click', ()=> doIzleSearch(izleCurrentQuery, true));
+
+  // Tab açıldığında otomatik trend yükle
+  let izleLoaded=false;
+  const origSwitch = window.switchTab;
+  window.switchTab = function(name){
+    if(origSwitch) origSwitch(name);
+    // also handle izle lazy load
+    if(name==='izle' && !izleLoaded){
+      izleLoaded=true;
+      doIzleSearch('trend');
+    }
+  };
+  // expose
+  window.doIzleSearch = doIzleSearch;
+  window.playIzleVideo = playIzleVideo;
 })();
 
 // Auto paste on load if clipboard contains youtube link (mobile UX)
