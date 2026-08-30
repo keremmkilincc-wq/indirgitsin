@@ -706,6 +706,28 @@ async function startDownload(info, format, btn){
               }
             }
           }catch(e){ console.log('direct fetch->FS failed/timeout', e); }
+          // Yöntem 2.5: URL süresi dolmuş olabilir - taze link dene
+          try{
+            if(format.url && (format.url.includes('googlevideo') || format.url.includes('expire'))){
+              console.log('trying fresh url for retry');
+              const fresh = await fetchInfo(info.url);
+              const freshSame = fresh.formats.find(f=> f.ext===format.ext && f.url && f.url.startsWith('http')) || fresh.formats.find(f=> f.type===format.type && f.url);
+              if(freshSame && freshSame.url && freshSame.url!==format.url){
+                console.log('fresh url found, retrying download');
+                format = freshSame;
+                info = fresh;
+                if(window.Android && window.Android.download){
+                  window.Android.download(format.url, filename.replace('.'+format.ext.split('/')[0], '.'+freshSame.ext));
+                  clearInterval(iv);
+                  progressFill.style.width='100%'; progressText.textContent='100%';
+                  progressModal.classList.add('hidden');
+                  showStatus(`İndirildi ✓ İndirilenler/IndirGitsin (taze link)`, 'success');
+                  addToHistory(info, format);
+                  return;
+                }
+              }
+            }
+          }catch(e){ console.log('fresh retry fail', e); }
           // Yöntem 3: Anchor (MainActivity setDownloadListener yakalar) - timeout yok, anında
           try{
             const a=document.createElement('a'); a.href=format.url; a.download=filename; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove();
@@ -999,9 +1021,46 @@ async function startDownload(info, format, btn){
       return;
     }
 
-    // Server gerekli ama yok - demo değil, doğrudan alternatif dene
+    // Server gerekli ama yok - doğrudan alternatif dene, önce taze link dene (URL süresi dolmuş olabilir)
     if(!format.url){
-      // Son çare: Piped/Innertube'dan url alınamadıysa bilgi ver
+      try{
+        showStatus('Link yenileniyor, tekrar deneniyor...','info');
+        progressText.textContent='Link yenileniyor...';
+        const fresh = await fetchInfo(info.url);
+        // M4A için taze ses bul
+        let freshFmt = null;
+        if(format.ext==='m4a' || format.type==='audio'){
+          freshFmt = fresh.formats.find(f=> f.type==='audio' && f.url && f.url.startsWith('http')) || fresh.formats.find(f=> f.url && f.url.startsWith('http'));
+        } else {
+          freshFmt = fresh.formats.find(f=> f.url && f.url.startsWith('http'));
+        }
+        if(freshFmt && freshFmt.url){
+          console.log('retry with fresh url', freshFmt.url.slice(0,60));
+          // taze format ile tekrar dene (recursive ama 1 kez)
+          // doğrudan indirme yolunu tetikle
+          let fn = `${(fresh.title||info.title||'video').replace(/[^\w\- ]/g,'').slice(0,60)}.${freshFmt.ext}`;
+          // native bridge direkt
+          if(native && window.Android && window.Android.download){
+            window.Android.download(freshFmt.url, fn);
+            clearInterval(iv);
+            progressFill.style.width='100%'; progressText.textContent='100%';
+            progressModal.classList.add('hidden');
+            showStatus(`İndirildi ✓ İndirilenler/IndirGitsin/${fn}`, 'success');
+            addToHistory(fresh, freshFmt);
+            return;
+          }
+          // değilse normal akışa geri dön: fresh ile tekrar startDownload
+          info = fresh; format = freshFmt;
+          // fall through to direct CDN block retry - window.open fallback
+          window.open(freshFmt.url, '_blank');
+          clearInterval(iv);
+          progressFill.style.width='100%'; progressText.textContent='100%';
+          progressModal.classList.add('hidden');
+          showStatus('Taze link ile indirme başlatıldı.', 'success');
+          addToHistory(fresh, freshFmt);
+          return;
+        }
+      }catch(e){ console.log('fresh retry fail', e); }
       await new Promise(r=>setTimeout(r, 400));
       clearInterval(iv);
       progressFill.style.width='0%'; progressText.textContent='0%';
@@ -1269,6 +1328,7 @@ $('#cancelDl').addEventListener('click', ()=> progressModal.classList.add('hidde
   navBtns.forEach(b=>{
     b.addEventListener('click', ()=> switchTab(b.dataset.tab));
   });
+  $('#headerAboutBtn')?.addEventListener('click', ()=> switchTab('hakkinda'));
   // History item tıklandığında İndir sekmesine dön
   const origRenderHistory = renderHistory;
   // expose
@@ -1474,7 +1534,7 @@ window.handleSharedText = handleSharedText;
 })();
 
 // --- Otomatik Güncelleme (GitHub Releases) ---
-const APP_VERSION = '1.7.1';
+const APP_VERSION = '1.7.2';
 const GITHUB_REPO = 'keremmkilincc-wq/indirgitsin';
 const UPDATE_CHECK_KEY = 'indir_gitsin_update_dismiss';
 const UPDATE_LAST_CHECK = 'indir_gitsin_last_check';
@@ -2070,7 +2130,81 @@ window.addEventListener('focus', ()=> checkForUpdate(false));
       const div=document.createElement('div'); div.className='file-item';
       div.innerHTML=`<img src="${item.thumb}" loading="lazy" onerror="this.src='assets/icon.svg'"><div class="file-main"><b title="${(item.title||'').replace(/"/g,'&quot;')}">${item.title||'Bilinmeyen'}</b><div class="file-meta"><span class="file-badge ${isAudio?'audio':''}">${item.format||''}</span><span>${formatHistoryDate(item.date)}</span><span style="opacity:0.7">${item.url.slice(0,28)}...</span></div></div><div class="file-actions"><button class="icon-btn file-play" title="Oynat">▶</button><button class="icon-btn file-share" title="Paylaş">↗</button><button class="icon-btn file-delete" title="Sil" style="color:#ff6b8a">✕</button></div>`;
       div.addEventListener('click',()=>{ urlInput.value=item.url; urlInput.dispatchEvent(new Event('input')); if(window.switchTab) window.switchTab('indir'); handleAnalyze(); });
-      div.querySelector('.file-play').addEventListener('click',e=>{ e.stopPropagation(); openHistoryPlayer(item); });
+      div.querySelector('.file-play').addEventListener('click',async e=>{
+        e.stopPropagation();
+        // Lokal oynatma öncelik (native Filesystem), yoksa remote fallback
+        const isAudio=/mp3|m4a|ses|audio/i.test(item.format);
+        const ext = isAudio ? (item.format.toLowerCase().includes('mp3')?'mp3':(item.format.toLowerCase().includes('webm')?'webm':'m4a')) : 'mp4';
+        const filename = `${(item.title||'video').replace(/[^\w\- ]/g,'').slice(0,60)}.${ext}`;
+        // 1) Native: dosyayı localden oku ve blob URL ile oynat
+        try{
+          const FS=window.Capacitor?.Plugins?.Filesystem;
+          if(FS && FS.readFile){
+            const Dir=FS.Directory||{};
+            const tries=[
+              Dir.ExternalStorage? {dir:Dir.ExternalStorage, path:`Download/IndirGitsin/${filename}`} : null,
+              Dir.Documents? {dir:Dir.Documents, path:`Download/IndirGitsin/${filename}`} : null,
+              Dir.Data? {dir:Dir.Data, path:filename}:null,
+            ].filter(Boolean);
+            for(const t of tries){
+              try{
+                const res=await FS.readFile({path:t.path, directory:t.dir});
+                // res.data base64
+                const b64=res.data;
+                const mime = ext==='mp4'?'video/mp4':(ext==='mp3'?'audio/mpeg':'audio/mp4');
+                const blob = await (async()=>{
+                  const bin=atob(b64);
+                  const arr=new Uint8Array(bin.length);
+                  for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+                  return new Blob([arr], {type:mime});
+                })();
+                const urlBlob=URL.createObjectURL(blob);
+                // playerModal ile oynat (lokal)
+                const modal=$('#playerModal'), vEl=$('#playerVideo'), aEl=$('#playerAudio'), pTitle=$('#playerTitle'), pSub=$('#playerSub'), ph=$('#playerPlaceholder'), sp=$('#playerSpinner');
+                if(modal){
+                  if(pTitle) pTitle.textContent=item.title+' (yerel)';
+                  if(pSub) pSub.textContent='📁 Yerel dosya • '+filename;
+                  if(ph) ph.style.display='none';
+                  if(sp) sp.style.display='none';
+                  modal.classList.remove('hidden');
+                  if(isAudio){
+                    if(vEl) { vEl.pause(); vEl.style.display='none'; }
+                    if(aEl){ aEl.src=urlBlob; aEl.style.display='block'; aEl.play().catch(()=>{}); }
+                  } else {
+                    if(aEl) { aEl.pause(); aEl.style.display='none'; }
+                    if(vEl){ vEl.src=urlBlob; vEl.style.display='block'; vEl.play().catch(()=>{}); }
+                  }
+                  // cleanup on close
+                  const closeHandler=()=>{
+                    try{ URL.revokeObjectURL(urlBlob); }catch{}
+                    if(vEl) vEl.pause();
+                    if(aEl) aEl.pause();
+                  };
+                  $('#playerClose')?.addEventListener('click', closeHandler, {once:true});
+                  modal.addEventListener('click', (ev)=>{ if(ev.target===modal) closeHandler(); }, {once:true});
+                  return;
+                }
+              }catch(err){ /* try next dir */ }
+            }
+            // getUri fallback - file://
+            try{
+              const FS2=window.Capacitor.Plugins.Filesystem;
+              const u=await FS2.getUri({path:`Download/IndirGitsin/${filename}`, directory:FS2.Directory.ExternalStorage});
+              if(u && u.uri){
+                const modal=$('#playerModal'), vEl=$('#playerVideo'), aEl=$('#playerAudio');
+                if(modal){
+                  modal.classList.remove('hidden');
+                  if(isAudio){ if(aEl){ aEl.src=u.uri; aEl.style.display='block'; aEl.play().catch(()=>{});} }
+                  else { if(vEl){ vEl.src=u.uri; vEl.style.display='block'; vEl.play().catch(()=>{});} }
+                  return;
+                }
+              }
+            }catch{}
+          }
+        }catch{}
+        // fallback remote
+        openHistoryPlayer(item);
+      });
       div.querySelector('.file-share').addEventListener('click',async e=>{ e.stopPropagation(); try{ if(navigator.share) await navigator.share({title:item.title, url:item.url}); else await navigator.clipboard.writeText(item.url); showStatus('Paylaşıldı / kopyalandı','success'); }catch{} });
       div.querySelector('.file-delete').addEventListener('click',e=>{
         e.stopPropagation();
