@@ -659,7 +659,7 @@ async function startDownload(info, format, btn){
               await new Promise(r=>setTimeout(r,400));
               progressModal.classList.add('hidden');
               showStatus(`İndirildi ✓ İndirilenler/IndirGitsin/${filename} (bildirim çubuğunu kontrol et)`, 'success');
-              addToHistory(info, format);
+              addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
               return;
             }
           }catch(e){ console.log('Android bridge fail', e); }
@@ -673,7 +673,7 @@ async function startDownload(info, format, btn){
               progressModal.classList.add('hidden');
               const loc = dl.dir==='AndroidBridge' ? 'İndirilenler/IndirGitsin' : `İndirilenler/IndirGitsin/${filename}`;
               showStatus(`İndirildi ✓ ${loc} (bildirim çubuğunu kontrol et)`, 'success');
-              addToHistory(info, format);
+              addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
               return;
             } else {
               console.log('downloadViaNative failed, fallback fetch', dl.error);
@@ -698,7 +698,7 @@ async function startDownload(info, format, btn){
                   const loc = res.dir==='CACHE' ? 'uygulama önbelleği' : `İndirilenler/IndirGitsin/${filename}`;
                   showStatus(`İndirildi ✓ Kaydedildi: ${loc}`, 'success');
                   try{ const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); }catch{}
-                  addToHistory(info, format);
+                  addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
                   return;
                 } else {
                   console.log('saveToDownloads failed', res.error);
@@ -722,7 +722,7 @@ async function startDownload(info, format, btn){
                   progressFill.style.width='100%'; progressText.textContent='100%';
                   progressModal.classList.add('hidden');
                   showStatus(`İndirildi ✓ İndirilenler/IndirGitsin (taze link)`, 'success');
-                  addToHistory(info, format);
+                  addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
                   return;
                 }
               }
@@ -736,7 +736,7 @@ async function startDownload(info, format, btn){
             await new Promise(r=>setTimeout(r,300));
             progressModal.classList.add('hidden');
             showStatus('İndirme başlatıldı (İndirilenler/IndirGitsin klasörünü kontrol et)...', 'success');
-            addToHistory(info, format);
+            addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
             return;
           }catch(e2){ console.log('anchor trigger failed', e2); }
           // Yöntem 4: External browser
@@ -747,7 +747,7 @@ async function startDownload(info, format, btn){
             progressFill.style.width='100%'; progressText.textContent='100%';
             progressModal.classList.add('hidden');
             showStatus('Tarayıcıda açıldı - indirme için ... menüden Kaydet deyin.', 'info');
-            addToHistory(info, format);
+            addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
             return;
           }catch{}
         }catch(e){
@@ -762,7 +762,7 @@ async function startDownload(info, format, btn){
           progressModal.classList.add('hidden');
           const a=document.createElement('a'); a.href=format.url; a.download=filename; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove();
           showStatus('Doğrudan indirme başlatıldı.', 'success');
-          addToHistory(info, format);
+          addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
           return;
         }catch{
           window.open(format.url, '_blank');
@@ -770,7 +770,7 @@ async function startDownload(info, format, btn){
           progressFill.style.width='100%'; progressText.textContent='100%';
           progressModal.classList.add('hidden');
           showStatus('Doğrudan indirme başlatıldı.', 'success');
-          addToHistory(info, format);
+          addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
           return;
         }
       }
@@ -780,7 +780,7 @@ async function startDownload(info, format, btn){
       progressModal.classList.add('hidden');
       window.open(format.url, '_blank');
       showStatus('Doğrudan link açıldı.', 'info');
-      addToHistory(info, format);
+      addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
       return;
     }
     // MP3 direkt sunucusuz (cihazda ffmpeg.wasm ile dönüştür)
@@ -820,7 +820,7 @@ async function startDownload(info, format, btn){
                 progressFill.style.width='100%'; progressText.textContent='100%';
                 progressModal.classList.add('hidden');
                 showStatus('M4A olarak indiriliyor (MP3 dönüştürülemedi) ✓ İndirilenler/IndirGitsin/'+fn, 'success');
-                addToHistory(info, {label:'M4A (fallback)'});
+                addToHistory(info, {label:'M4A (fallback)'}, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
                 return;
               }
             }catch{}
@@ -904,7 +904,7 @@ async function startDownload(info, format, btn){
               progressModal.classList.add('hidden');
               const loc2 = res2.dir==='CACHE' ? 'önbellek' : `İndirilenler/IndirGitsin/${filename}`;
               showStatus(`MP3 indirildi ✓ ${loc2} ${res2.dir==='CACHE' ? '(Dosya Yöneticisi > Android/data/com.indirgitsin.app)':''}`, 'success');
-              addToHistory(info, format);
+              addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
               return;
             } else {
               console.log('MP3 save fail', res2.error);
@@ -919,7 +919,7 @@ async function startDownload(info, format, btn){
           await new Promise(r=>setTimeout(r,300));
           progressModal.classList.add('hidden');
           showStatus('MP3 oluşturuldu ve indirildi.', 'success');
-          addToHistory(info, format);
+          addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
           return;
         }catch(e){
           clearInterval(iv);
@@ -989,7 +989,7 @@ async function startDownload(info, format, btn){
               await new Promise(r=>setTimeout(r,400));
               progressModal.classList.add('hidden');
               showStatus(`İndirme tamamlandı! Dosya kaydedildi: ${filename}`, 'success');
-              addToHistory(info, format);
+              addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
               return;
             }
           }
@@ -998,7 +998,7 @@ async function startDownload(info, format, btn){
             progressFill.style.width='100%'; progressText.textContent='100%';
             progressModal.classList.add('hidden');
             showStatus('Tarayıcıda indirme başlatıldı.', 'success');
-            addToHistory(info, format);
+            addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
             return;
           }
         }catch(e){ console.log('native download fallback', e); }
@@ -1007,7 +1007,7 @@ async function startDownload(info, format, btn){
         progressFill.style.width='100%'; progressText.textContent='100%';
         progressModal.classList.add('hidden');
         showStatus('İndirme bağlantısı açıldı (tarayıcı).', 'success');
-        addToHistory(info, format);
+        addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
         return;
       }
       const url = URL.createObjectURL(blob);
@@ -1017,7 +1017,7 @@ async function startDownload(info, format, btn){
       await new Promise(r=>setTimeout(r,400));
       progressModal.classList.add('hidden');
       showStatus('İndirme tamamlandı! İndirilenler klasörüne kaydedildi.', 'success');
-      addToHistory(info, format);
+      addToHistory(info, format, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
       return;
     }
 
@@ -1046,7 +1046,7 @@ async function startDownload(info, format, btn){
             progressFill.style.width='100%'; progressText.textContent='100%';
             progressModal.classList.add('hidden');
             showStatus(`İndirildi ✓ İndirilenler/IndirGitsin/${fn}`, 'success');
-            addToHistory(fresh, freshFmt);
+            addToHistory(fresh, freshFmt, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
             return;
           }
           // değilse normal akışa geri dön: fresh ile tekrar startDownload
@@ -1057,7 +1057,7 @@ async function startDownload(info, format, btn){
           progressFill.style.width='100%'; progressText.textContent='100%';
           progressModal.classList.add('hidden');
           showStatus('Taze link ile indirme başlatıldı.', 'success');
-          addToHistory(fresh, freshFmt);
+          addToHistory(fresh, freshFmt, typeof fn !== 'undefined' ? fn : (typeof filename !== 'undefined' ? filename : undefined));
           return;
         }
       }catch(e){ console.log('fresh retry fail', e); }
@@ -1140,12 +1140,13 @@ function renderHistory(){
     historyList.appendChild(div);
   });
 }
-function addToHistory(info, format){
+function addToHistory(info, format, filename){
   const h=loadHistory();
   // aynı url+format varsa başa taşı, duplicate engelle
   const existingIdx=h.findIndex(x=> x.url===info.url && x.format===format.label);
   if(existingIdx!==-1) h.splice(existingIdx,1);
-  h.unshift({title:info.title, thumb:info.thumbnail, url:info.url, format:format.label, date:new Date().toISOString()});
+  const fname = filename || `${(info.title||'video').replace(/[^\w\- ]/g,'').slice(0,60)}.${format.ext||'mp4'}`;
+  h.unshift({title:info.title, thumb:info.thumbnail, url:info.url, format:format.label, date:new Date().toISOString(), filename: fname, ext: format.ext||''});
   saveHistory(h.slice(0,30));
   renderHistory();
   if(window.renderFiles) try{ window.renderFiles(); }catch{}
@@ -1534,7 +1535,7 @@ window.handleSharedText = handleSharedText;
 })();
 
 // --- Otomatik Güncelleme (GitHub Releases) ---
-const APP_VERSION = '1.7.3';
+const APP_VERSION = '1.7.4';
 const GITHUB_REPO = 'keremmkilincc-wq/indirgitsin';
 const UPDATE_CHECK_KEY = 'indir_gitsin_update_dismiss';
 const UPDATE_LAST_CHECK = 'indir_gitsin_last_check';
@@ -2134,18 +2135,36 @@ window.addEventListener('focus', ()=> checkForUpdate(false));
         e.stopPropagation();
         // Lokal oynatma öncelik (native Filesystem), yoksa remote fallback
         const isAudio=/mp3|m4a|ses|audio/i.test(item.format);
-        const ext = isAudio ? (item.format.toLowerCase().includes('mp3')?'mp3':(item.format.toLowerCase().includes('webm')?'webm':'m4a')) : 'mp4';
-        const filename = `${(item.title||'video').replace(/[^\w\- ]/g,'').slice(0,60)}.${ext}`;
+        const ext = item.ext || (isAudio ? (item.format.toLowerCase().includes('mp3')?'mp3':(item.format.toLowerCase().includes('webm')?'webm':'m4a')) : 'mp4');
+        const guessed = `${(item.title||'video').replace(/[^\w\- ]/g,'').slice(0,60)}.${ext}`;
+        const filename = item.filename || guessed;
         // 1) Native: dosyayı localden oku ve blob URL ile oynat
         try{
           const FS=window.Capacitor?.Plugins?.Filesystem;
           if(FS && FS.readFile){
             const Dir=FS.Directory||{};
-            const tries=[
-              Dir.ExternalStorage? {dir:Dir.ExternalStorage, path:`Download/IndirGitsin/${filename}`} : null,
-              Dir.Documents? {dir:Dir.Documents, path:`Download/IndirGitsin/${filename}`} : null,
-              Dir.Data? {dir:Dir.Data, path:filename}:null,
-            ].filter(Boolean);
+            // önce tam isim dene, sonra dizin tarayıp benzer isim bul
+            let candidates = [filename, guessed].filter((v,i,a)=> v && a.indexOf(v)===i);
+            // dizin listele ve benzer bul
+            try{
+              const dirs=[Dir.ExternalStorage, Dir.Documents].filter(Boolean);
+              for(const d of dirs){
+                try{
+                  const listing=await FS.readdir({path:'Download/IndirGitsin', directory:d});
+                  const files=(listing.files||[]).map(f=> typeof f==='string'?f:f.name);
+                  const sanitized = (item.title||'').replace(/[^\w\- ]/g,'').slice(0,20).toLowerCase();
+                  for(const f of files){
+                    if(f.toLowerCase().includes(sanitized) && !candidates.includes(f)) candidates.push(f);
+                  }
+                }catch{}
+              }
+            }catch{}
+            const tries=[];
+            for(const cand of candidates){
+              if(Dir.ExternalStorage) tries.push({dir:Dir.ExternalStorage, path:`Download/IndirGitsin/${cand}`});
+              if(Dir.Documents) tries.push({dir:Dir.Documents, path:`Download/IndirGitsin/${cand}`});
+              if(Dir.Data) tries.push({dir:Dir.Data, path:cand});
+            }
             for(const t of tries){
               try{
                 const res=await FS.readFile({path:t.path, directory:t.dir});
@@ -2163,7 +2182,7 @@ window.addEventListener('focus', ()=> checkForUpdate(false));
                 const modal=$('#playerModal'), vEl=$('#playerVideo'), aEl=$('#playerAudio'), pTitle=$('#playerTitle'), pSub=$('#playerSub'), ph=$('#playerPlaceholder'), sp=$('#playerSpinner');
                 if(modal){
                   if(pTitle) pTitle.textContent=item.title+' (yerel)';
-                  if(pSub) pSub.textContent='📁 Yerel dosya • '+filename;
+                  if(pSub) pSub.textContent='📁 Yerel dosya • '+t.path.split('/').pop();
                   if(ph) ph.style.display='none';
                   if(sp) sp.style.display='none';
                   modal.classList.remove('hidden');
